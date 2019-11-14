@@ -26,7 +26,7 @@ def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
                     each_inst_dict["InstanceId"] = instance.get("InstanceId")
                     each_inst_dict["imageID"] = instance.get("ImageId")
                     each_inst_dict["Platform"] = instance.get("Platform","None")
-                    list_of_images[instance.get("ImageId")] = None
+                    list_of_images[instance.get("ImageId")] = ""
                     all_tags = {}
                     for each_tag in instance.get("Tags", {}):
                         all_tags[each_tag["Key"]] = each_tag["Value"]
