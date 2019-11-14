@@ -25,7 +25,8 @@ def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
                     each_inst_dict = dict()
                     each_inst_dict["InstanceId"] = instance.get("InstanceId")
                     each_inst_dict["imageID"] = instance.get("ImageId")
-                    list_of_images[instance.get("ImageId")] = ""
+                    each_inst_dict["Platform"] = instance.get("Platform","None")
+                    list_of_images[instance.get("ImageId")] = None
                     all_tags = {}
                     for each_tag in instance.get("Tags", {}):
                         all_tags[each_tag["Key"]] = each_tag["Value"]
@@ -55,13 +56,16 @@ def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
         tag_value = None
         for each_instance in all_instances:
             image_id = each_instance["imageID"]
+            platform = each_instance["Platform"]
             image_name = list_of_images[image_id]
-            if "win" in image_name:
+            if "win122" in image_name or "win122" in platform:
                 tag_value = custom_tag_info.get("windows","NoTagDefinedForWindows")
-            elif "rhel" in image_name:
+            elif "rhel" in image_name or "rhel" in platform:
                 tag_value = custom_tag_info.get("linux", "NoTagDefinedForLinux")
-            elif "amzn" in image_name:
+            elif "amzn" in image_name or "amzn" in platform:
                 tag_value = custom_tag_info.get("amzlnx", "NoTagDefinedForAmzonLinux")
+            elif each_instance["existing_tags"].get("OS"):
+                tag_value = each_instance["existing_tags"].get("OS")
             else:
                 print("No OS type defined for "+instance.get("InstanceId")+ " with Image Name: " + image_name)
             if tag_value:
