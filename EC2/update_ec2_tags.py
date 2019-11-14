@@ -58,7 +58,7 @@ def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
             image_id = each_instance["imageID"]
             platform = each_instance["Platform"]
             image_name = list_of_images[image_id]
-            if "win122" in image_name or "win122" in platform:
+            if "win" in image_name or "win" in platform:
                 tag_value = custom_tag_info.get("windows","NoTagDefinedForWindows")
             elif "rhel" in image_name or "rhel" in platform:
                 tag_value = custom_tag_info.get("linux", "NoTagDefinedForLinux")
