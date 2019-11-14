@@ -1,0 +1,111 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Lambda Function to tag the EC2 Instances.",
+    "Parameters": {
+        "BucketForLambdaCode": {
+            "Description": "Select the bucket name where the lambda function code resides",
+            "Default": "lambda-satish",
+            "Type": "String"
+        },
+        "LambdaZipFileName": {
+            "Description": "Select the Key name in the bucket to consume the code, Code Should be uploaded to Bucker Prior",
+            "Default": "tag_ec2.zip",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "EC2TagRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": "EC2_TAG_ROLE",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/"
+            }
+        },
+        "EC2TagPolicy": {
+            "DependsOn": [
+                "EC2TagRole"
+            ],
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "OnlyEC2TagPolicy",
+                "Roles": [
+                    {
+                        "Ref": "EC2TagRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:*"
+                            ],
+                            "Resource": [
+                                "arn:aws:logs:*:*:*"
+                            ]
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "ec2:Describe*",
+                            "Resource": "*"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "ec2:DeleteTags",
+                                "ec2:CreateTags"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                }
+            }
+        },
+        "EC2TaggingLambda": {
+            "Type": "AWS::Lambda::Function",
+            "DependsOn": [
+                "EC2TagRole",
+                "EC2TagPolicy"
+            ],
+            "Properties": {
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "BucketForLambdaCode"
+                    },
+                    "S3Key": {
+                        "Ref": "LambdaZipFileName"
+                    }
+                },
+                "Role": {
+                    "Fn::GetAtt": [
+                        "EC2TagRole",
+                        "Arn"
+                    ]
+                },
+                "Timeout": 300,
+                "Description": "To Tag EC2 Instances",
+                "Handler": "tag_ec2.lambda_handler",
+                "FunctionName": "EC2-Auto-Tagging",
+                "Runtime": "python3.7",
+                "MemorySize": 128
+            }
+        }
+    }
+}
