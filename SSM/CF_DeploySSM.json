@@ -72,7 +72,7 @@
                     "arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"
                 ],
                 "Path": "/",
-                "RoleName": "AutomationServiceRole"
+                "RoleName": "SSM-ServiceRole"
             }
         },
         "CreateMaintenanceWindowWIN": {
