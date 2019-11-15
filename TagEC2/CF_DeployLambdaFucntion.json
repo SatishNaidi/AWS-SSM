@@ -9,7 +9,7 @@
         },
         "LambdaZipFileName": {
             "Description": "Select the Key name in the bucket to consume the code, Code Should be uploaded to Bucker Prior",
-            "Default": "tag_ec2.zip",
+            "Default": "update_ec2_tags.zip",
             "Type": "String"
         },
         "ScheduleFrequency": {
@@ -106,7 +106,7 @@
                 },
                 "Timeout": 300,
                 "Description": "To Tag EC2 Instances",
-                "Handler": "tag_ec2.lambda_handler",
+                "Handler": "update_ec2_tags.lambda_handler",
                 "FunctionName": "EC2-Auto-Tagging",
                 "Runtime": "python3.7",
                 "MemorySize": 128
