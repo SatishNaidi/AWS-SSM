@@ -11,6 +11,11 @@
             "Description": "Select the Key name in the bucket to consume the code, Code Should be uploaded to Bucker Prior",
             "Default": "tag_ec2.zip",
             "Type": "String"
+        },
+        "ScheduleFrequency": {
+            "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
+            "Default": "rate(6 hours)",
+            "Type": "String"
         }
     },
     "Resources": {
@@ -106,6 +111,45 @@
                 "Runtime": "python3.7",
                 "MemorySize": 128
             }
+        },
+      "ScheduledRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Description": "Triggers Lambda function at Scheduled Interval",
+        "ScheduleExpression": {"Ref": "ScheduleFrequency"},
+          "Name": "LamdbaScheduler",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "EC2TaggingLambda",
+                "Arn"
+              ]
+            },
+            "Id": "LamdbaScheduler"
+          }
+        ]
+      }
+    },
+    "InvokeLambdaPermission": {
+          "Type": "AWS::Lambda::Permission",
+          "Properties": {
+            "FunctionName": {
+              "Fn::GetAtt": [
+                "EC2TaggingLambda",
+                "Arn"
+              ]
+            },
+            "Action": "lambda:InvokeFunction",
+            "Principal": "events.amazonaws.com",
+            "SourceArn": {
+              "Fn::GetAtt": [
+                "ScheduledRule",
+                "Arn"
+              ]
+            }
+          }
         }
     }
 }
