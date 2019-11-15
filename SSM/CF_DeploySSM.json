@@ -456,7 +456,7 @@
                 }
             }
         },
-        "CreateTaskAMZNLNX": {
+        "CreateTaskAmazonLinux": {
             "Type": "AWS::SSM::MaintenanceWindowTask",
             "Properties": {
                 "MaxErrors": 50,
