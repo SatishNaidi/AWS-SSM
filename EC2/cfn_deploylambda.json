@@ -112,44 +112,66 @@
                 "MemorySize": 128
             }
         },
-      "ScheduledRule": {
-      "Type": "AWS::Events::Rule",
-      "Properties": {
-        "Description": "Triggers Lambda function at Scheduled Interval",
-        "ScheduleExpression": {"Ref": "ScheduleFrequency"},
-          "Name": "LamdbaScheduler",
-        "State": "ENABLED",
-        "Targets": [
-          {
-            "Arn": {
-              "Fn::GetAtt": [
-                "EC2TaggingLambda",
-                "Arn"
-              ]
-            },
-            "Id": "LamdbaScheduler"
-          }
-        ]
-      }
-    },
-    "InvokeLambdaPermission": {
-          "Type": "AWS::Lambda::Permission",
-          "Properties": {
-            "FunctionName": {
-              "Fn::GetAtt": [
-                "EC2TaggingLambda",
-                "Arn"
-              ]
-            },
-            "Action": "lambda:InvokeFunction",
-            "Principal": "events.amazonaws.com",
-            "SourceArn": {
-              "Fn::GetAtt": [
-                "ScheduledRule",
-                "Arn"
-              ]
+        "ScheduledRule": {
+            "Type": "AWS::Events::Rule",
+            "Properties": {
+                "Description": "Triggers Lambda function at Scheduled Interval",
+                "ScheduleExpression": {
+                    "Ref": "ScheduleFrequency"
+                },
+                "Name": "LamdbaScheduler",
+                "State": "ENABLED",
+                "Targets": [
+                    {
+                        "Arn": {
+                            "Fn::GetAtt": [
+                                "EC2TaggingLambda",
+                                "Arn"
+                            ]
+                        },
+                        "Id": "LamdbaScheduler"
+                    }
+                ]
             }
-          }
+        },
+        "InvokeLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "EC2TaggingLambda",
+                        "Arn"
+                    ]
+                },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "events.amazonaws.com",
+                "SourceArn": {
+                    "Fn::GetAtt": [
+                        "ScheduledRule",
+                        "Arn"
+                    ]
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "ExecutionRole": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "EC2TagRole"
+            }
+        },
+        "LambdaFunction": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "EC2TaggingLambda"
+            }
+        },
+        "EventSchedule": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "ScheduledRule"
+            }
         }
     }
 }
