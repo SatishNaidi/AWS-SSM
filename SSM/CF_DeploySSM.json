@@ -39,6 +39,11 @@
                 true,
                 false
             ]
+        },
+              "GatherInventorySchedule": {
+            "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
+            "Default": "rate(12 hours)",
+            "Type": "String"
         }
     },
     "Resources": {
@@ -509,7 +514,7 @@
             "Properties": {
                 "AssociationName": "GatherInventory",
                 "Name": "AWS-GatherSoftwareInventory",
-                "ScheduleExpression": "cron(0 2 ? * SUN *)",
+                "ScheduleExpression": {"Ref":  "GatherInventorySchedule"},
                 "Targets": [
                     {
                         "Key": "InstanceIds",
