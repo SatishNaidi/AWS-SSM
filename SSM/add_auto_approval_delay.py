@@ -52,13 +52,29 @@ def collect_all_patchbaselines(client, patch_baselines):
         paginator = client.get_paginator('describe_patch_baselines')
         marker = None
         response_pages = []
-        response_iterator = paginator.paginate(PaginationConfig={
-            'PageSize': 1,
-            'StartingToken': marker}
+        base_line_ids = []
+        response_iterator = paginator.paginate(
+            Filters=[
+                {
+                    'Key': 'NAME_PREFIX',
+                    'Values': patch_baselines
+                }
+            ],
+            PaginationConfig={
+                'PageSize': 1,
+                'StartingToken': marker
+            }
         )
 
         for page in response_iterator:
-            response_pages.extend(page["BaselineIdentities"])
+            for each_item  in page["BaselineIdentities"]:
+                base_line_ids.append(each_item["BaselineId"])
+            # response = client.get_patch_baseline(
+            #     BaselineId=page["BaselineIdentities"]["BaselineId"]
+            # )
+
+            #     get_patch_baseline
+        #page["BaselineIdentities"]["BaselineId]
 
         to_be_modified_baselines = []
         for each in response_pages:
@@ -88,12 +104,10 @@ def update_delay_for_patchbaseline(client, to_be_modified_baselines, delay_days)
                                 },
                             ]
                         },
-                        'ApproveAfterDays': delay_days,
-                        'EnableNonSecurity': False
+                        'ApproveAfterDays': delay_days
                     },
                 ]
-            },
-            Replace=False
+            }
         )
         response_list.append(response)
     print(response_list)
@@ -101,7 +115,7 @@ def update_delay_for_patchbaseline(client, to_be_modified_baselines, delay_days)
 
 
 def lambda_handler(event, context):
-    client = boto3.client('ssm')
+    client = boto3.client('ssm',region_name="us-east-1")
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
@@ -109,7 +123,7 @@ def lambda_handler(event, context):
     except Exception as err:
         print("Specified Env Variable doesn't exits")
         # return "Specified Env Variable doesn't exits")
-        patch_baselines = ["Test", "Test2"]
+        patch_baselines = ["WindowsApprovedPatches","AmazonLinuxApprovedPatches"]
         # patch_date = "Oct-08-2019"
 
     delay_days = calculate_days_from_patchday()
@@ -120,11 +134,11 @@ def lambda_handler(event, context):
 
     return {
         'statusCode': 200,
-        'body': json.dumps(str(response))
+        'body': response
     }
 
 
 if __name__ == "__main__":
-    # import pdb
-    # pdb.set_trace()
+    import pdb
+    pdb.set_trace()
     print(lambda_handler({}, {}))
