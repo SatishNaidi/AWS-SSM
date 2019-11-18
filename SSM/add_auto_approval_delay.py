@@ -1,9 +1,8 @@
 import boto3
-import json
 from datetime import datetime, date, timedelta
 import os
 import calendar
-
+import pprint
 
 def find_second_tuesday_of_month(month):
     """
@@ -52,7 +51,7 @@ def collect_all_patchbaselines(client, patch_baselines):
         paginator = client.get_paginator('describe_patch_baselines')
         marker = None
         response_pages = []
-        base_line_ids = []
+        # base_line_ids = []
         response_iterator = paginator.paginate(
             Filters=[
                 {
@@ -67,20 +66,28 @@ def collect_all_patchbaselines(client, patch_baselines):
         )
 
         for page in response_iterator:
-            for each_item  in page["BaselineIdentities"]:
-                base_line_ids.append(each_item["BaselineId"])
-            # response = client.get_patch_baseline(
-            #     BaselineId=page["BaselineIdentities"]["BaselineId"]
-            # )
+            for each_item in page["BaselineIdentities"]:
+                # base_line_ids.append(each_item["BaselineId"])
+                response = client.get_patch_baseline(
+                    BaselineId=each_item["BaselineId"]
+                )
+                pprint.pprint(response)
+                patch_rules = response.get("ApprovalRules", {}).get("PatchRules", {})
+                response_pages.append({each_item["BaselineId"]: patch_rules})
+            return response_pages
+
+
+
+
 
             #     get_patch_baseline
         #page["BaselineIdentities"]["BaselineId]
 
-        to_be_modified_baselines = []
-        for each in response_pages:
-            if each["BaselineName"] in patch_baselines:
-                to_be_modified_baselines.append(each)
-        return to_be_modified_baselines
+        # to_be_modified_baselines = []
+        # for each in response_pages:
+        #     if each["BaselineName"] in patch_baselines:
+        #         to_be_modified_baselines.append(each)
+        # return to_be_modified_baselines
     except Exception as Err:
         print(Err)
         return False
