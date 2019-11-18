@@ -50,8 +50,7 @@ def collect_all_patchbaselines(client, patch_baselines):
     try:
         paginator = client.get_paginator('describe_patch_baselines')
         marker = None
-        response_pages = []
-        # base_line_ids = []
+        response_pages = {}
         response_iterator = paginator.paginate(
             Filters=[
                 {
@@ -60,92 +59,67 @@ def collect_all_patchbaselines(client, patch_baselines):
                 }
             ],
             PaginationConfig={
-                'PageSize': 1,
                 'StartingToken': marker
             }
         )
 
         for page in response_iterator:
             for each_item in page["BaselineIdentities"]:
-                # base_line_ids.append(each_item["BaselineId"])
+                base_line_id = each_item["BaselineId"]
                 response = client.get_patch_baseline(
-                    BaselineId=each_item["BaselineId"]
+                    BaselineId=base_line_id
                 )
-                pprint.pprint(response)
+                # pprint.pprint(response)
                 patch_rules = response.get("ApprovalRules", {}).get("PatchRules", {})
-                response_pages.append({each_item["BaselineId"]: patch_rules})
+                response_pages[base_line_id]= patch_rules
             return response_pages
-
-
-
-
-
-            #     get_patch_baseline
-        #page["BaselineIdentities"]["BaselineId]
-
-        # to_be_modified_baselines = []
-        # for each in response_pages:
-        #     if each["BaselineName"] in patch_baselines:
-        #         to_be_modified_baselines.append(each)
-        # return to_be_modified_baselines
     except Exception as Err:
         print(Err)
         return False
 
 
-def update_delay_for_patchbaseline(client, to_be_modified_baselines, delay_days):
+def update_delay_for_patch_baseline(client, to_be_modified_baselines, delay_days):
     response_list = []
     for each_base_line in to_be_modified_baselines:
+        for d in to_be_modified_baselines[each_base_line]:
+            d.update((k, delay_days) for k, v in d.items() if k == "ApproveAfterDays")
         response = client.update_patch_baseline(
-            BaselineId=each_base_line['BaselineId'],
+            BaselineId=each_base_line,
             ApprovalRules={
-                'PatchRules': [
-                    {
-                        'PatchFilterGroup': {
-                            'PatchFilters': [
-                                {
-                                    'Key': 'PATCH_SET',
-                                    'Values': [
-                                        'OS',
-                                    ]
-                                },
-                            ]
-                        },
-                        'ApproveAfterDays': delay_days
-                    },
-                ]
+                'PatchRules': to_be_modified_baselines[each_base_line]
             }
         )
         response_list.append(response)
-    print(response_list)
     return response_list
 
 
 def lambda_handler(event, context):
-    client = boto3.client('ssm',region_name="us-east-1")
-
+    regions = ["us-east-1", "us-east-2"]
+    all_regions_response = {}
+    delay_days = calculate_days_from_patchday()
+    print("Days from Patch Tuesday: ", delay_days)
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
-        # patch_date = os.environ['patch_date']
     except Exception as err:
-        print("Specified Env Variable doesn't exits")
+        print("Env Variable 'patch_baselines' doesn't exits")
         # return "Specified Env Variable doesn't exits")
-        patch_baselines = ["WindowsApprovedPatches","AmazonLinuxApprovedPatches"]
+        patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
         # patch_date = "Oct-08-2019"
 
-    delay_days = calculate_days_from_patchday()
-    print(delay_days)
-
-    patches_to_be_edited = collect_all_patchbaselines(client, patch_baselines)
-    response = update_delay_for_patchbaseline(client, patches_to_be_edited, delay_days)
-
+    for each_region in regions:
+        client = boto3.client('ssm',region_name=each_region)
+        print("Connected to region: " + each_region)
+        patches_to_be_edited = collect_all_patchbaselines(client, patch_baselines)
+        response = update_delay_for_patch_baseline(client, patches_to_be_edited, delay_days)
+        all_regions_response[each_region] = response
+        print("Finished processing in region: " + each_region)
     return {
         'statusCode': 200,
-        'body': response
+        'body': all_regions_response
     }
 
 
 if __name__ == "__main__":
     import pdb
     pdb.set_trace()
-    print(lambda_handler({}, {}))
+    pprint.pprint(lambda_handler({}, {}))
