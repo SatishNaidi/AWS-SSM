@@ -2,7 +2,15 @@ import boto3
 import botocore
 import sys
 import pprint
+from datetime import datetime, date
+import json
 
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
 
 def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
     """
@@ -130,7 +138,7 @@ def lambda_handler(event,context):
         final_response[region] = response
     return {
         'statusCode': 200,
-        'body': final_response
+        'body': json.loads(json.dumps(final_response, default=json_serial))
     }
 
 

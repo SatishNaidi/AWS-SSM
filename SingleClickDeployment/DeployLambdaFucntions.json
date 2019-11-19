@@ -27,7 +27,8 @@
                     },
                     "Parameters": [
                         "AutoApprovalDelayLambdaCodeZip",
-                        "AutoApprovalDelayExecSchedule"
+                        "AutoApprovalDelayExecSchedule",
+                        "PatchBaselinesToBeModified"
                     ]
                 }
             ]
@@ -57,6 +58,11 @@
         "AutoApprovalDelayExecSchedule": {
             "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
             "Default": "rate(6 hours)",
+            "Type": "String"
+        },
+        "PatchBaselinesToBeModified": {
+            "Description": "List of Patch Baselines in comma seperated values without spaces",
+            "Default": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches",
             "Type": "String"
         }
     },
@@ -257,7 +263,9 @@
                 },
                 "Environment": {
                     "Variables": {
-                        "patch_baselines": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches"
+                        "patch_baselines": {
+                            "Ref": "PatchBaselinesToBeModified"
+                        }
                     }
                 },
                 "Timeout": 300,
