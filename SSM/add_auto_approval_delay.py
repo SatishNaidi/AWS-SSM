@@ -1,8 +1,17 @@
 import boto3
 from datetime import datetime, date, timedelta
 import os
+import json
 import calendar
 import pprint
+
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError ("Type %s not serializable" % type(obj))
 
 def find_second_tuesday_of_month(month):
     """
@@ -115,7 +124,7 @@ def lambda_handler(event, context):
         print("Finished processing in region: " + each_region)
     return {
         'statusCode': 200,
-        'body': all_regions_response
+        'body': json.loads(json.dumps(all_regions_response, default=json_serial))
     }
 
 
