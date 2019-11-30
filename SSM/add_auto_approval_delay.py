@@ -11,7 +11,8 @@ def json_serial(obj):
 
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    raise TypeError ("Type %s not serializable" % type(obj))
+    raise TypeError("Type %s not serializable" % type(obj))
+
 
 def find_second_tuesday_of_month(month):
     """
@@ -116,7 +117,7 @@ def lambda_handler(event, context):
         # patch_date = "Oct-08-2019"
 
     for each_region in regions:
-        client = boto3.client('ssm',region_name=each_region)
+        client = boto3.client('ssm', region_name=each_region)
         print("Connected to region: " + each_region)
         patches_to_be_edited = collect_all_patchbaselines(client, patch_baselines)
         response = update_delay_for_patch_baseline(client, patches_to_be_edited, delay_days)
