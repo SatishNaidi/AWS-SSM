@@ -17,6 +17,7 @@ def json_serial(obj):
         return obj.isoformat()
     raise TypeError("Type %s not serializable" % type(obj))
 
+
 def write_to_csv(filename, list_of_dict):
     """
     :param filename:
@@ -51,33 +52,54 @@ def write_to_csv(filename, list_of_dict):
     return filename
 
 
-def instance_patch_info(client):
-    pages = client.get_paginator('describe_instance_information')
+def instance_patch_info(ssm_client,ec2_client):
+    pages = ssm_client.get_paginator('describe_instance_information')
     all_instances = []
     instance_ids = []
+    instance_ids_dict = {}
     for page in pages.paginate():
         all_instances.extend(page.get("InstanceInformationList", []))
-    for each_instance in all_instances:
-        instance_ids.append(each_instance["InstanceId"])
-    instance_report_csv = write_to_csv("InstanceReport.csv", all_instances)
 
-    all_instances_patch_report  = []
+    for each_instance in all_instances:
+        instance_ids_dict[each_instance["InstanceId"]] = ""
+
+
+    pages = ec2_client.get_paginator('describe_instances')
+
+    for page in pages.paginate(InstanceIds=list(instance_ids_dict.keys())):
+        for reservation in page.get("Reservations"):
+            for instance in reservation.get("Instances"):
+                instance = json.loads(json.dumps(instance, default=json_serial))
+                instance_profile = instance.get("IamInstanceProfile", {}).get("Arn", "NA")
+                launch_time = instance["LaunchTime"]
+                instance_ids_dict[instance["InstanceId"]] = {
+                    "IAMProfile":instance_profile,
+                    "LaunchTime":launch_time
+                }
+    for each_instance in all_instances:
+        # to_be_updated_details = {
+        #         "InstanceId": each_instance["InstanceId"],
+        #         "Name": each_instance["ComputerName"]
+        #     }
+        # to_be_updated_details.update(instance_ids_dict[each_instance["InstanceId"]])
+        each_instance.update(instance_ids_dict[each_instance["InstanceId"]])
+
+    instance_report_csv = write_to_csv("InstanceReport.csv", all_instances)
+    all_instances_patch_report = []
     for each_instance in instance_ids:
-        paginator = client.get_paginator('describe_instance_patches')
-        page_iterator = paginator.paginate(InstanceId=each_instance)
-        items = []
-        for each_page in page_iterator:
-            try:
+        paginator = ssm_client.get_paginator('describe_instance_patches')
+        try:
+            page_iterator = paginator.paginate(InstanceId=each_instance["InstanceId"])
+            items = []
+            for each_page in page_iterator:
                 # print(each_page.get("Patches", []))
                 items.extend(each_page.get("Patches", []))
-            except Exception as err:
-                # print(each_page.get("Patches", []))
-                # pdb.set_trace()
-                print(err)
-                pass
-
+        except Exception as outErr:
+            print(outErr)
+            pass
         # Adding Instance ID to each element
-        items = [dict(item, InstanceId=each_instance) for item in items]
+        items = [dict(item, InstanceId=each_instance["InstanceId"]) for item in items]
+        items = [dict(item, Name=each_instance["Name"]) for item in items]
         instance_patch_report = json.loads(json.dumps(items, default=json_serial))
         all_instances_patch_report.extend(instance_patch_report)
     instance_patch_report_csv = write_to_csv("InstancePatchReport.csv", all_instances_patch_report)
@@ -94,8 +116,9 @@ def upload_file_s3(client, bucket_name, to_be_upload_filename):
 
 
 def lambda_handler(event, context):
-    client = boto3.client('ssm', region_name="us-east-1")
-    generated_csv = instance_patch_info(client)
+    ssm_client = boto3.client('ssm', region_name="us-east-1")
+    ec2_client = boto3.client('ec2', region_name="us-east-1")
+    generated_csv = instance_patch_info(ssm_client,ec2_client)
     s3_client = boto3.client("s3",region_name="us-east-1")
     bucket_name = 'madhav-ssm-logs'
     final_response = {}
@@ -114,9 +137,7 @@ def lambda_handler(event, context):
     }
 
 
-
 if __name__ == "__main__":
     import pdb
     pdb.set_trace()
     pprint.pprint(lambda_handler({}, {}))
-
