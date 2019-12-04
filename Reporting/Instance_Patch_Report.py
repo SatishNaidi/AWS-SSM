@@ -86,7 +86,7 @@ def instance_patch_info(ssm_client,ec2_client):
 
     instance_report_csv = write_to_csv("InstanceReport.csv", all_instances)
     all_instances_patch_report = []
-    for each_instance in instance_ids:
+    for each_instance in all_instances:
         paginator = ssm_client.get_paginator('describe_instance_patches')
         try:
             page_iterator = paginator.paginate(InstanceId=each_instance["InstanceId"])
@@ -99,7 +99,7 @@ def instance_patch_info(ssm_client,ec2_client):
             pass
         # Adding Instance ID to each element
         items = [dict(item, InstanceId=each_instance["InstanceId"]) for item in items]
-        items = [dict(item, Name=each_instance["Name"]) for item in items]
+        items = [dict(item, Name=each_instance["ComputerName"]) for item in items]
         instance_patch_report = json.loads(json.dumps(items, default=json_serial))
         all_instances_patch_report.extend(instance_patch_report)
     instance_patch_report_csv = write_to_csv("InstancePatchReport.csv", all_instances_patch_report)
