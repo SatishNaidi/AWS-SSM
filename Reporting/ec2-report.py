@@ -47,7 +47,7 @@ def _flatten_json(y):
     return out
 
 
-def format_tags_and_sgs(input_dict):
+def format_nested_keys(input_dict):
     all_keys = list(input_dict.keys())
     for each_key in all_keys:
         if each_key == "Tags":
@@ -59,6 +59,10 @@ def format_tags_and_sgs(input_dict):
             for value in input_dict["SecurityGroups"]:
                 attr.append(value["GroupName"] + ":" + value["GroupId"])
             input_dict["SecurityGroups"] = ",".join(attr)
+        elif each_key == "IamInstanceProfile":
+            input_dict["IamInstanceProfile"] = input_dict["IamInstanceProfile"]["Arn"]
+        else:
+            pass
     return _flatten_json(input_dict)
 
 
@@ -81,7 +85,7 @@ def filter_needed_fields(input_dict, filter_keys):
         for each_key in filter_keys:
             if each_key in input_dict_keys:
                 each_instance_dict[each_key] = json_formatted[each_key]
-        final_out.append(format_tags_and_sgs(each_instance_dict))
+        final_out.append(format_nested_keys(each_instance_dict))
     return final_out
 
 
@@ -130,7 +134,7 @@ def upload_file_s3(client, bucket_name, to_be_upload_filename):
 
 def lambda_handler(event, context):
     ec2_client = boto3.client('ec2', region_name="us-east-1")
-    field_names = ['InstanceId', 'InstanceType', 'ImageId', 'State_Name', 'KeyName', 'IamInstanceProfile_Arn',
+    field_names = ['InstanceId', 'InstanceType', 'ImageId', 'State_Name', 'KeyName', 'IamInstanceProfile',
                    'SecurityGroups', 'Tags', 'LaunchTime', 'PrivateDnsName', 'PrivateIpAddress', 'PublicIpAddress']
     ec2_info = gather_ec2_instance_info(ec2_client)
     required_info = filter_needed_fields(ec2_info, field_names)
