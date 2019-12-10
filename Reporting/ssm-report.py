@@ -115,7 +115,6 @@ def detailed_instance_patch_report(ssm_client, instance_ids):
             instance_patch_report = json.loads(json.dumps(items, default=json_serial))
             all_instances_patch_report.extend(instance_patch_report)
         except Exception as outErr:
-            pdb.set_trace()
             print(outErr)
             pass
         # Adding Instance ID to each element
