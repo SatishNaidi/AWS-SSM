@@ -52,7 +52,10 @@ def format_nested_keys(input_dict):
     for each_key in all_keys:
         if each_key == "Tags":
             for value in input_dict["Tags"]:
-                input_dict["Tag_"+value["Key"]] = value["Value"]
+                if value["Key"] == "Name":
+                    input_dict["Name"] = value["Value"]
+                else:
+                    input_dict["Tag_"+value["Key"]] = value["Value"]
             del input_dict["Tags"]
         elif each_key == "SecurityGroups":
             attr = []
@@ -81,13 +84,20 @@ def gather_ec2_instance_info(ec2_client):
     return all_instances_info
 
 
-def gather_instance_patch_info(ssm_client, ec2_instance_ids):
+def gather_instance_patch_states(ssm_client, ec2_instance_ids):
     pages = ssm_client.get_paginator('describe_instance_patch_states')
     instance_patches = []
     for page in pages.paginate(InstanceIds=ec2_instance_ids):
         instance_patches.extend(page["InstancePatchStates"])
     return instance_patches
 
+
+def gather_instance_patch_info(ssm_client):
+    pages = ssm_client.get_paginator('describe_instance_information')
+    all_instances = []
+    for page in pages.paginate():
+        all_instances.extend(page.get("InstanceInformationList", []))
+    return all_instances
 
 def filter_needed_fields(input_dict, filter_keys):
     final_out = []
@@ -146,19 +156,31 @@ def upload_file_s3(client, bucket_name, to_be_upload_filename):
 
 
 def lambda_handler(event, context):
+    """
+    Default Handler
+    """
     ec2_client = boto3.client('ec2', region_name="us-east-1")
-    field_names = ['InstanceId', 'InstanceType', 'ImageId', 'State', 'KeyName', 'IamInstanceProfile',
-                   'SecurityGroups', 'Tags', 'LaunchTime', 'PrivateDnsName', 'PrivateIpAddress', 'PublicIpAddress']
-    ec2_info = gather_ec2_instance_info(ec2_client)
-
-    required_info = filter_needed_fields(ec2_info, field_names)
-    instance_ids = [item["InstanceId"] for item in ec2_info]
     ssm_client = boto3.client('ssm', region_name="us-east-1")
-    csvs_list =[]
-    instance_patch_state = gather_instance_patch_info(ssm_client, instance_ids)
-    if len(instance_patch_state):
-        csvs_list.append(write_to_csv("InstancePatchStates.csv",instance_patch_state))
 
+    field_names = ['InstanceId', 'State', 'IamInstanceProfile', 'Tags', 'LaunchTime']
+
+    ec2_info = gather_ec2_instance_info(ec2_client)
+    required_info = filter_needed_fields(ec2_info, field_names)
+
+    required_info_instance_ids = [item["InstanceId"] for item in ec2_info]
+
+    csvs_list = []
+    instance_patch_state = gather_instance_patch_states(ssm_client, required_info_instance_ids)
+    instance_patch_state = {each_item["InstanceId"]:each_item for each_item in instance_patch_state}
+
+    instance_patch_info = gather_instance_patch_info(ssm_client)
+    instance_patch_info = {each_item["InstanceId"]: each_item for each_item in instance_patch_info}
+
+    for each_ec2 in required_info:
+        each_ec2.update(instance_patch_state.get(each_ec2["InstanceId"], {}))
+        each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
+
+    # csvs_list.append(write_to_csv("InstancePatchStates.csv", list(instance_patch_state.values())))
     csvs_list.append(write_to_csv("ec2_report.csv", required_info))
     s3_client = boto3.client("s3",region_name="us-east-1")
     bucket_name = 'madhav-ssm-logs'
