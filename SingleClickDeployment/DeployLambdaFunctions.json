@@ -17,8 +17,7 @@
                         "default": "Tag EC2 Lambda Configuration"
                     },
                     "Parameters": [
-                        "EC2TaggingLambdaCodeZip",
-                        "EC2TaggingExecSchedule"
+                        "EC2TaggingLambdaCodeZip"
                     ]
                 },
                 {
@@ -27,7 +26,6 @@
                     },
                     "Parameters": [
                         "AutoApprovalDelayLambdaCodeZip",
-                        "AutoApprovalDelayExecSchedule",
                         "PatchBaselinesToBeModified"
                     ]
                 }
@@ -45,7 +43,7 @@
             "Default": "update_ec2_tags.zip",
             "Type": "String"
         },
-        "EC2TaggingExecSchedule": {
+        "LambdaExecSchedule": {
             "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
             "Default": "rate(6 hours)",
             "Type": "String"
@@ -53,11 +51,6 @@
         "AutoApprovalDelayLambdaCodeZip": {
             "Description": "Select the Key name in the bucket to consume the code, Code Should be uploaded to Bucket Prior",
             "Default": "add_auto_approval_delay.zip",
-            "Type": "String"
-        },
-        "AutoApprovalDelayExecSchedule": {
-            "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
-            "Default": "rate(6 hours)",
             "Type": "String"
         },
         "PatchBaselinesToBeModified": {
@@ -300,7 +293,7 @@
             "Properties": {
                 "Description": "Triggers Lambda function at Scheduled Interval",
                 "ScheduleExpression": {
-                    "Ref": "EC2TaggingExecSchedule"
+                    "Ref": "LambdaExecSchedule"
                 },
                 "Name": "LamdbaScheduler",
                 "State": "ENABLED",
