@@ -105,11 +105,11 @@ def detailed_instance_patch_report(ssm_client, instance_ids):
     all_instances_patch_report = []
     for each_instance in instance_ids:
         paginator = ssm_client.get_paginator('describe_instance_patches')
+        states = ["Installed", "Missing"]
         try:
             page_iterator = paginator.paginate(InstanceId=each_instance)
             items = []
             for each_page in page_iterator:
-                # print(each_page.get("Patches", []))
                 items.extend(each_page.get("Patches", []))
             items = [dict(item, InstanceId=each_instance) for item in items]
             instance_patch_report = json.loads(json.dumps(items, default=json_serial))
@@ -117,8 +117,7 @@ def detailed_instance_patch_report(ssm_client, instance_ids):
         except Exception as outErr:
             print(outErr)
             pass
-        # Adding Instance ID to each element
-    return all_instances_patch_report
+    return [i for i in all_instances_patch_report if i['State'] in states]
 
 
 def filter_needed_fields(input_dict, filter_keys):
@@ -159,8 +158,8 @@ def write_to_csv(filename, list_of_dict):
                 index = len(columns) - 1
             row[index] = value
         all_rows.append(row)
-    with open(filename, "w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
+    with open(filename, "w", newline='') as csv_file:
+        writer = csv.writer(csv_file)
         # first row is the headers
         writer.writerow(columns)
         # then, the rows
@@ -194,7 +193,6 @@ def convert_csv_to_xlsx(out_file_name, csv_list):
 def patch_base_line_names_to_ids(client, patch_baselines):
     try:
         paginator = client.get_paginator('describe_patch_baselines')
-        marker = None
         response_base_lines = {}
         response_iterator = paginator.paginate(
             Filters=[
@@ -202,10 +200,7 @@ def patch_base_line_names_to_ids(client, patch_baselines):
                     'Key': 'NAME_PREFIX',
                     'Values': patch_baselines
                 }
-            ],
-            PaginationConfig={
-                'StartingToken': marker
-            }
+            ]
         )
         for page in response_iterator:
             for each_item in page["BaselineIdentities"]:
@@ -257,9 +252,16 @@ def lambda_handler(event, context):
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
+        bucket_name = os.environ['bucket_name']
     except Exception as err:
         print("Env Variable 'patch_baselines' doesn't exits")
         patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
+
+    try:
+        bucket_name = os.environ['bucket_name']
+    except Exception as err:
+        print("Env Variable 'bucket_name' doesn't exits")
+        bucket_name = 'madhav-ssm-logs'
 
     # PatchBaselines Report
     response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines)
@@ -291,11 +293,14 @@ def lambda_handler(event, context):
 
     csvs_list.append(write_to_csv("EC2Report.csv", required_info))
     s3_client = boto3.client("s3",region_name="us-east-1")
-    bucket_name = 'madhav-ssm-logs'
-    xls_file = convert_csv_to_xlsx("ConsolidatedReport.xlsx", csvs_list)
+
+    current_date = datetime.now()
+    dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
+    consolidated_report_name = "ConsolidatedReport_"+dt_string+".xlsx"
+    xls_file = convert_csv_to_xlsx(consolidated_report_name, csvs_list)
     csvs_list.append(xls_file)
     final_response = {}
-    for each_file in csvs_list:
+    for each_file in [consolidated_report_name]:
         try:
             upload_file_s3(s3_client,bucket_name, each_file)
             print("Uploaded file : " + each_file)
