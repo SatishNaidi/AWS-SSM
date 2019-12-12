@@ -184,6 +184,7 @@ def convert_csv_to_xlsx(out_file_name, csv_list):
                     for c, col in enumerate(row):
                         worksheet.write(r, c, col)
         workbook.close()
+        print("xls file name", out_file_name)
         return out_file_name
     except Exception as err:
         print(err)
@@ -234,10 +235,11 @@ def get_effective_patches(client, patch_base_lines):
 
 def upload_file_s3(client, bucket_name, to_be_upload_filename):
     only_filename = os.path.basename(to_be_upload_filename)
-
     try:
-        return client.upload_file(to_be_upload_filename, bucket_name, only_filename)
+        res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
+        return "File: "+ only_filename + "Uploaded to bucket : "+ bucket_name
     except Exception as err:
+        print(err)
         return err
 
 
@@ -252,7 +254,6 @@ def lambda_handler(event, context):
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
-        bucket_name = os.environ['bucket_name']
     except Exception as err:
         print("Env Variable 'patch_baselines' doesn't exits")
         patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
@@ -300,11 +301,10 @@ def lambda_handler(event, context):
     xls_file = convert_csv_to_xlsx(consolidated_report_name, csvs_list)
     csvs_list.append(xls_file)
     final_response = {}
-    for each_file in [consolidated_report_name]:
+    for each_file in [xls_file]:
         try:
-            upload_file_s3(s3_client,bucket_name, each_file)
-            print("Uploaded file : " + each_file)
-            final_response[os.path.basename(each_file)] = "Upload Success"
+            result = upload_file_s3(s3_client,bucket_name, each_file)
+            final_response[os.path.basename(each_file)] = result
         except Exception as err:
             print("Error in Uploading file : " + each_file)
             final_response[os.path.basename(each_file)] = "Upload Failed"
