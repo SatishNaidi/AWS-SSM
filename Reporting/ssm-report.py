@@ -184,7 +184,6 @@ def convert_csv_to_xlsx(out_file_name, csv_list):
                     for c, col in enumerate(row):
                         worksheet.write(r, c, col)
         workbook.close()
-        print("xls file name", out_file_name)
         return out_file_name
     except Exception as err:
         print(err)
