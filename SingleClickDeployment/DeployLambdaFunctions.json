@@ -28,6 +28,14 @@
                         "AutoApprovalDelayLambdaCodeZip",
                         "PatchBaselinesToBeModified"
                     ]
+                },
+                {
+                    "Label": {
+                        "default": "SSM Reports Lambda Function"
+                    },
+                    "Parameters": [
+                        "SSMReportingLambdaZip"
+                    ]
                 }
             ]
         }
@@ -35,7 +43,7 @@
     "Parameters": {
         "BucketForLambdaCode": {
             "Description": "Select the bucket name where the lambda function code resides",
-            "Default": "lambda-satish",
+            "Default": "mylambda-bucket",
             "Type": "String"
         },
         "EC2TaggingLambdaCodeZip": {
@@ -56,6 +64,11 @@
         "PatchBaselinesToBeModified": {
             "Description": "List of Patch Baselines in comma seperated values without spaces",
             "Default": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches",
+            "Type": "String"
+        },
+        "SSMReportingLambdaZip": {
+            "Description": "Select the Key name in the bucket to consume the code, Code Should be uploaded to Bucket Prior",
+            "Default": "ssm-report.zip",
             "Type": "String"
         }
     },
@@ -148,12 +161,12 @@
                 "Timeout": 300,
                 "Description": "To Tag EC2 Instances",
                 "Handler": "update_ec2_tags.lambda_handler",
-                "FunctionName": "EC2-Auto-Tagging",
+                "FunctionName": "SSM-EC2AutoTagging",
                 "Runtime": "python3.7",
                 "MemorySize": 128
             }
         },
-        "InvokeLambdaPermission": {
+        "EC2TaggingFnInvokeLambdaPermission": {
             "Type": "AWS::Lambda::Permission",
             "Properties": {
                 "FunctionName": {
@@ -233,7 +246,7 @@
                 }
             }
         },
-        "UpdateAutoApprovalDelayFunction": {
+        "UpdateAutoApprovalDelayLambda": {
             "Type": "AWS::Lambda::Function",
             "DependsOn": [
                 "UpdateAutoApprovalDelayRole",
@@ -264,7 +277,7 @@
                 "Timeout": 300,
                 "Description": "Updates Auto Approval Delay for provided Patch Baselines",
                 "Handler": "add_auto_approval_delay.lambda_handler",
-                "FunctionName": "Update-Auto-Approval-Delay-SSM",
+                "FunctionName": "SSM-UpdateAutoApprovalDelay",
                 "Runtime": "python3.7",
                 "MemorySize": 128
             }
@@ -274,7 +287,157 @@
             "Properties": {
                 "FunctionName": {
                     "Fn::GetAtt": [
-                        "UpdateAutoApprovalDelayFunction",
+                        "UpdateAutoApprovalDelayLambda",
+                        "Arn"
+                    ]
+                },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "events.amazonaws.com",
+                "SourceArn": {
+                    "Fn::GetAtt": [
+                        "ScheduledRule",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+        "SSMReportingS3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "BucketName": {
+                    "Fn::Sub": "ssm-reports-${AWS::Region}-${AWS::AccountId}"
+                    }
+            },
+        "DeletionPolicy": "Retain"
+        },
+        "SSMReportingRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "RoleName": "SSMReportsROLE",
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/"
+            }
+        },
+        "SSMReportingPolicy": {
+            "DependsOn": [
+                "SSMReportingRole",
+                "SSMReportingS3Bucket"
+            ],
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "SSMReportingPolicy",
+                "Roles": [
+                    {
+                        "Ref": "SSMReportingRole"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:*"
+                            ],
+                            "Resource": [
+                                "arn:aws:logs:*:*:*"
+                            ]
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "ec2:Describe*",
+                            "Resource": "*"
+                        },
+                        {
+                            "Action": [
+                                "ssm:Describe*",
+                                "ssm:Get*",
+                                "ssm:List*"
+                            ],
+                            "Resource": "*",
+                            "Effect": "Allow"
+                        },
+                        {
+                            "Sid": "ListObjectsInBucket",
+                            "Effect": "Allow",
+                            "Action": ["s3:ListBucket"],
+                            "Resource": [
+                                {
+                                    "Fn::Sub": "arn:aws:s3:::${SSMReportingS3Bucket}"
+                                }
+                            ]
+                        },
+                        {
+                            "Sid": "AllObjectActions",
+                            "Effect": "Allow",
+                            "Action": "s3:*Object",
+                            "Resource": [
+                                {
+                                    "Fn::Sub": "arn:aws:s3:::${SSMReportingS3Bucket}/*"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "SSMReportingLambda": {
+            "Type": "AWS::Lambda::Function",
+            "DependsOn": [
+                "EC2TagRole",
+                "EC2TagPolicy"
+            ],
+            "Properties": {
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "BucketForLambdaCode"
+                    },
+                    "S3Key": {
+                        "Ref": "SSMReportingLambdaZip"
+                    }
+                },
+                "Role": {
+                    "Fn::GetAtt": [
+                        "SSMReportingRole",
+                        "Arn"
+                    ]
+                },
+                "Environment": {
+                    "Variables": {
+                        "bucket_name": {
+                            "Ref": "SSMReportingS3Bucket"
+                        }
+                    }
+                },
+                "Timeout": 600,
+                "Description": "To Generate SSM Reports",
+                "Handler": "ssm-report.lambda_handler",
+                "FunctionName": "SSM-ReportsToS3",
+                "Runtime": "python3.7",
+                "MemorySize": 128
+            }
+        },
+        "SSMReportingFnInvokeLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "SSMReportingLambda",
                         "Arn"
                     ]
                 },
@@ -310,7 +473,7 @@
                     {
                         "Arn": {
                             "Fn::GetAtt": [
-                                "UpdateAutoApprovalDelayFunction",
+                                "UpdateAutoApprovalDelayLambda",
                                 "Arn"
                             ]
                         },
@@ -321,16 +484,40 @@
         }
     },
     "Outputs": {
-        "ExecutionRole": {
+        "EC2TagExecutionRole": {
             "Description": "Role created ",
             "Value": {
                 "Ref": "EC2TagRole"
             }
         },
-        "LambdaFunction": {
+        "EC2TagLambdaFunction": {
             "Description": "Role created ",
             "Value": {
                 "Ref": "EC2TaggingLambda"
+            }
+        },
+        "UpdateAutoApprovalDelayRole": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "UpdateAutoApprovalDelayRole"
+            }
+        },
+        "UpdateAutoApprovalDelayLambda": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "UpdateAutoApprovalDelayLambda"
+            }
+        },
+        "SSMReportingRole": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "SSMReportingRole"
+            }
+        },
+        "SSMReportingLambda": {
+            "Description": "Role created ",
+            "Value": {
+                "Ref": "SSMReportingLambda"
             }
         },
         "EventSchedule": {
