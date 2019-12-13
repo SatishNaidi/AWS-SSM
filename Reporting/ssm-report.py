@@ -105,7 +105,7 @@ def detailed_instance_patch_report(ssm_client, instance_ids):
     all_instances_patch_report = []
     for each_instance in instance_ids:
         paginator = ssm_client.get_paginator('describe_instance_patches')
-        states = ["Installed", "Missing"]
+        states = ["Installed", "Missing", "Failed"]
         try:
             page_iterator = paginator.paginate(InstanceId=each_instance)
             items = []
@@ -272,11 +272,11 @@ def lambda_handler(event, context):
     field_names = ['InstanceId', 'State', 'IamInstanceProfile', 'Tags', 'LaunchTime']
     ec2_info = gather_ec2_instance_info(ec2_client)
     required_info = filter_needed_fields(ec2_info, field_names)
-    required_info_instance_ids = [item["InstanceId"] for item in ec2_info]
+    required_info_instance_ids = {item["InstanceId"]:item for item in required_info}
 
     # Instance Patch State
-    instance_patch_state = gather_instance_patch_states(ssm_client, required_info_instance_ids)
-    instance_patch_state = {each_item["InstanceId"]:each_item for each_item in instance_patch_state}
+    instance_patch_state = gather_instance_patch_states(ssm_client, list(required_info_instance_ids.keys()))
+    instance_patch_state = {each_item["InstanceId"]: each_item for each_item in instance_patch_state}
 
     # Instance Patch Info
     instance_patch_info = gather_instance_patch_info(ssm_client)
@@ -284,6 +284,11 @@ def lambda_handler(event, context):
 
     # Detailed Instance Patch Report
     instance_patch_report = detailed_instance_patch_report(ssm_client,required_info_instance_ids)
+    for each_instance in instance_patch_report:
+        if each_instance["InstanceId"] in required_info_instance_ids:
+            each_instance["Name"] = required_info_instance_ids[each_instance["InstanceId"]].get("Name","NA")
+            each_instance["RunState"] = required_info_instance_ids[each_instance["InstanceId"]]["State"]
+
     csvs_list.append(write_to_csv("EC2PatchReport.csv", instance_patch_report))
 
     # Consolidating EC2 Report, Patch State Report and Instance Patch Info
@@ -292,7 +297,7 @@ def lambda_handler(event, context):
         each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
 
     csvs_list.append(write_to_csv("EC2Report.csv", required_info))
-    s3_client = boto3.client("s3",region_name="us-east-1")
+    s3_client = boto3.client("s3", region_name="us-east-1")
 
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
