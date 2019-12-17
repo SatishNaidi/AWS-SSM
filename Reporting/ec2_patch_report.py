@@ -1,10 +1,9 @@
 import boto3
 import pprint
 import csv
-from datetime import datetime, date
+from datetime import datetime, date, time
 import json
 import os
-from xlsxwriter.workbook import Workbook
 
 
 def json_serial(obj):
@@ -93,7 +92,7 @@ def divide_chunks(items_list, n):
 
 def gather_instance_patch_states(ssm_client, ec2_instance_ids):
     pages = ssm_client.get_paginator('describe_instance_patch_states')
-    chunked_ids = list(divide_chunks(ec2_instance_ids, 40))
+    chunked_ids = list(divide_chunks(ec2_instance_ids, 49))
     instance_patches = []
     for each_chunk in chunked_ids:
         for page in pages.paginate(InstanceIds=each_chunk):
@@ -114,17 +113,27 @@ def detailed_instance_patch_report(ssm_client, instance_ids):
     for each_instance in instance_ids:
         paginator = ssm_client.get_paginator('describe_instance_patches')
         states = ["Installed", "Missing", "Failed"]
-        try:
-            page_iterator = paginator.paginate(InstanceId=each_instance)
-            items = []
-            for each_page in page_iterator:
-                items.extend(each_page.get("Patches", []))
-            items = [dict(item, InstanceId=each_instance) for item in items]
-            instance_patch_report = json.loads(json.dumps(items, default=json_serial))
-            all_instances_patch_report.extend(instance_patch_report)
-        except Exception as outErr:
-            print(outErr)
-            pass
+        for each_state in states:
+            try:
+                page_iterator = paginator.paginate(InstanceId=each_instance,
+                                                   Filters=[
+                                                       {
+                                                           'Key': 'State',
+                                                           'Values': [
+                                                               each_state
+                                                           ]
+                                                       }
+                                                   ]
+                                                   )
+                items = []
+                for each_page in page_iterator:
+                    items.extend(each_page.get("Patches", []))
+                items = [dict(item, InstanceId=each_instance) for item in items]
+                instance_patch_report = json.loads(json.dumps(items, default=json_serial))
+                all_instances_patch_report.extend(instance_patch_report)
+            except Exception as outErr:
+                print(outErr)
+                pass
     return [i for i in all_instances_patch_report if i['State'] in states]
 
 
@@ -175,29 +184,6 @@ def write_to_csv(filename, list_of_dict):
     return filename
 
 
-def convert_csv_to_xlsx(out_file_name, csv_list):
-    """
-    Converts all given CSV List of files to EXCEL
-    """
-    if __name__ != "__main__":
-        out_file_name = "/tmp/"+out_file_name
-    try:
-        workbook = Workbook(out_file_name)
-        for each_csv_file in csv_list:
-            sheet_name = os.path.splitext(os.path.basename(each_csv_file))[0]
-            worksheet = workbook.add_worksheet(sheet_name)
-            with open(each_csv_file, 'rt', encoding='utf8') as f:
-                reader = csv.reader(f)
-                for r, row in enumerate(reader):
-                    for c, col in enumerate(row):
-                        worksheet.write(r, c, col)
-        workbook.close()
-        return out_file_name
-    except Exception as err:
-        print(err)
-        return "Unable to create .xlsx file"
-
-
 def patch_base_line_names_to_ids(client, patch_baselines):
     try:
         paginator = client.get_paginator('describe_patch_baselines')
@@ -244,7 +230,7 @@ def upload_file_s3(client, bucket_name, to_be_upload_filename):
     only_filename = os.path.basename(to_be_upload_filename)
     try:
         res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
-        return "File: "+ only_filename + "Uploaded to bucket : "+ bucket_name
+        return "File: "+only_filename + "Uploaded to bucket : "+bucket_name
     except Exception as err:
         print(err)
         return err
@@ -257,13 +243,6 @@ def lambda_handler(event, context):
     # Connection Objects
     ec2_client = boto3.client('ec2', region_name="us-east-1")
     ssm_client = boto3.client('ssm', region_name="us-east-1")
-    csvs_list = []
-
-    try:
-        patch_baselines = os.environ['patch_baselines'].split(",")
-    except Exception as err:
-        print("Env Variable 'patch_baselines' doesn't exits")
-        patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
 
     try:
         bucket_name = os.environ['bucket_name']
@@ -271,16 +250,11 @@ def lambda_handler(event, context):
         print("Env Variable 'bucket_name' doesn't exits")
         bucket_name = 'madhav-ssm-logs'
 
-    # PatchBaselines Report
-    response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines)
-    list_of_patches = get_effective_patches(ssm_client, response_patch_base_lines)
-    csvs_list.append(write_to_csv("PatchBaseLineReport.csv", list_of_patches))
-
     # EC2Report
     field_names = ['InstanceId', 'State', 'IamInstanceProfile', 'Tags', 'LaunchTime']
     ec2_info = gather_ec2_instance_info(ec2_client)
     required_info = filter_needed_fields(ec2_info, field_names)
-    required_info_instance_ids = {item["InstanceId"]:item for item in required_info}
+    required_info_instance_ids = {item["InstanceId"]: item for item in required_info}
 
     # Instance Patch State
     instance_patch_state = gather_instance_patch_states(ssm_client, list(required_info_instance_ids.keys()))
@@ -291,35 +265,27 @@ def lambda_handler(event, context):
     instance_patch_info = {each_item["InstanceId"]: each_item for each_item in instance_patch_info}
 
     # Detailed Instance Patch Report
-    instance_patch_report = detailed_instance_patch_report(ssm_client,required_info_instance_ids)
+    instance_patch_report = detailed_instance_patch_report(ssm_client, list(instance_patch_info.keys()))
     for each_instance in instance_patch_report:
         if each_instance["InstanceId"] in required_info_instance_ids:
             each_instance["Name"] = required_info_instance_ids[each_instance["InstanceId"]].get("Name","NA")
             each_instance["RunState"] = required_info_instance_ids[each_instance["InstanceId"]]["State"]
 
-    csvs_list.append(write_to_csv("EC2PatchReport.csv", instance_patch_report))
 
-    # Consolidating EC2 Report, Patch State Report and Instance Patch Info
-    for each_ec2 in required_info:
-        each_ec2.update(instance_patch_state.get(each_ec2["InstanceId"], {}))
-        each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
-
-    csvs_list.append(write_to_csv("EC2Report.csv", required_info))
     s3_client = boto3.client("s3", region_name="us-east-1")
 
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
-    consolidated_report_name = "ConsolidatedReport_"+dt_string+".xlsx"
-    xls_file = convert_csv_to_xlsx(consolidated_report_name, csvs_list)
-    csvs_list.append(xls_file)
+    ec2_patch_report = "EC2_Patch_Report_"+dt_string+".csv"
+    print(write_to_csv(ec2_patch_report, instance_patch_report))
     final_response = {}
-    for each_file in [xls_file]:
-        try:
-            result = upload_file_s3(s3_client,bucket_name, each_file)
-            final_response[os.path.basename(each_file)] = result
-        except Exception as err:
-            print("Error in Uploading file : " + each_file)
-            final_response[os.path.basename(each_file)] = "Upload Failed"
+
+    try:
+        result = upload_file_s3(s3_client,bucket_name, ec2_patch_report)
+        final_response[os.path.basename(ec2_patch_report)] = result
+    except Exception as err:
+        print("Error in Uploading file : " + ec2_patch_report)
+        final_response[os.path.basename(ec2_patch_report)] = "Upload Failed"
     return {
         'statusCode': 200,
         'body': final_response

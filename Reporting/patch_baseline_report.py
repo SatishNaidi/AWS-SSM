@@ -4,7 +4,6 @@ import csv
 from datetime import datetime, date
 import json
 import os
-from xlsxwriter.workbook import Workbook
 
 
 def json_serial(obj):
@@ -175,29 +174,6 @@ def write_to_csv(filename, list_of_dict):
     return filename
 
 
-def convert_csv_to_xlsx(out_file_name, csv_list):
-    """
-    Converts all given CSV List of files to EXCEL
-    """
-    if __name__ != "__main__":
-        out_file_name = "/tmp/"+out_file_name
-    try:
-        workbook = Workbook(out_file_name)
-        for each_csv_file in csv_list:
-            sheet_name = os.path.splitext(os.path.basename(each_csv_file))[0]
-            worksheet = workbook.add_worksheet(sheet_name)
-            with open(each_csv_file, 'rt', encoding='utf8') as f:
-                reader = csv.reader(f)
-                for r, row in enumerate(reader):
-                    for c, col in enumerate(row):
-                        worksheet.write(r, c, col)
-        workbook.close()
-        return out_file_name
-    except Exception as err:
-        print(err)
-        return "Unable to create .xlsx file"
-
-
 def patch_base_line_names_to_ids(client, patch_baselines):
     try:
         paginator = client.get_paginator('describe_patch_baselines')
@@ -255,9 +231,7 @@ def lambda_handler(event, context):
     Default Handler
     """
     # Connection Objects
-    ec2_client = boto3.client('ec2', region_name="us-east-1")
     ssm_client = boto3.client('ssm', region_name="us-east-1")
-    csvs_list = []
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
@@ -274,52 +248,18 @@ def lambda_handler(event, context):
     # PatchBaselines Report
     response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines)
     list_of_patches = get_effective_patches(ssm_client, response_patch_base_lines)
-    csvs_list.append(write_to_csv("PatchBaseLineReport.csv", list_of_patches))
-
-    # EC2Report
-    field_names = ['InstanceId', 'State', 'IamInstanceProfile', 'Tags', 'LaunchTime']
-    ec2_info = gather_ec2_instance_info(ec2_client)
-    required_info = filter_needed_fields(ec2_info, field_names)
-    required_info_instance_ids = {item["InstanceId"]:item for item in required_info}
-
-    # Instance Patch State
-    instance_patch_state = gather_instance_patch_states(ssm_client, list(required_info_instance_ids.keys()))
-    instance_patch_state = {each_item["InstanceId"]: each_item for each_item in instance_patch_state}
-
-    # Instance Patch Info
-    instance_patch_info = gather_instance_patch_info(ssm_client)
-    instance_patch_info = {each_item["InstanceId"]: each_item for each_item in instance_patch_info}
-
-    # Detailed Instance Patch Report
-    instance_patch_report = detailed_instance_patch_report(ssm_client,required_info_instance_ids)
-    for each_instance in instance_patch_report:
-        if each_instance["InstanceId"] in required_info_instance_ids:
-            each_instance["Name"] = required_info_instance_ids[each_instance["InstanceId"]].get("Name","NA")
-            each_instance["RunState"] = required_info_instance_ids[each_instance["InstanceId"]]["State"]
-
-    csvs_list.append(write_to_csv("EC2PatchReport.csv", instance_patch_report))
-
-    # Consolidating EC2 Report, Patch State Report and Instance Patch Info
-    for each_ec2 in required_info:
-        each_ec2.update(instance_patch_state.get(each_ec2["InstanceId"], {}))
-        each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
-
-    csvs_list.append(write_to_csv("EC2Report.csv", required_info))
+    dt_string = datetime.now().strftime("%d_%b_%Y_%H_%M")
+    patch_basel_report = "PatchBaseLineReport_" + dt_string + ".csv"
+    print(write_to_csv(patch_basel_report, list_of_patches))
     s3_client = boto3.client("s3", region_name="us-east-1")
 
-    current_date = datetime.now()
-    dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
-    consolidated_report_name = "ConsolidatedReport_"+dt_string+".xlsx"
-    xls_file = convert_csv_to_xlsx(consolidated_report_name, csvs_list)
-    csvs_list.append(xls_file)
     final_response = {}
-    for each_file in [xls_file]:
-        try:
-            result = upload_file_s3(s3_client,bucket_name, each_file)
-            final_response[os.path.basename(each_file)] = result
-        except Exception as err:
-            print("Error in Uploading file : " + each_file)
-            final_response[os.path.basename(each_file)] = "Upload Failed"
+    try:
+        result = upload_file_s3(s3_client, bucket_name, patch_basel_report)
+        final_response[os.path.basename(patch_basel_report)] = result
+    except Exception as err:
+        print("Error in Uploading file : " + patch_basel_report)
+        final_response[os.path.basename(patch_basel_report)] = "Upload Failed"
     return {
         'statusCode': 200,
         'body': final_response
