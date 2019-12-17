@@ -228,6 +228,7 @@ def get_effective_patches(client, patch_base_lines):
 
 def upload_file_s3(client, bucket_name, to_be_upload_filename):
     only_filename = os.path.basename(to_be_upload_filename)
+
     try:
         res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
         return "File: "+only_filename + "Uploaded to bucket : "+bucket_name
@@ -277,15 +278,15 @@ def lambda_handler(event, context):
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
     ec2_patch_report = "EC2_Patch_Report_"+dt_string+".csv"
-    print(write_to_csv(ec2_patch_report, instance_patch_report))
+    instance_patch_report_file = write_to_csv(ec2_patch_report, instance_patch_report)
     final_response = {}
 
     try:
-        result = upload_file_s3(s3_client,bucket_name, ec2_patch_report)
-        final_response[os.path.basename(ec2_patch_report)] = result
+        result = upload_file_s3(s3_client,bucket_name, instance_patch_report_file)
+        final_response[os.path.basename(instance_patch_report_file)] = result
     except Exception as err:
-        print("Error in Uploading file : " + ec2_patch_report)
-        final_response[os.path.basename(ec2_patch_report)] = "Upload Failed"
+        print("Error in Uploading file : " + instance_patch_report_file)
+        final_response[os.path.basename(instance_patch_report_file)] = "Upload Failed"
     return {
         'statusCode': 200,
         'body': final_response
