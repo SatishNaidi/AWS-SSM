@@ -147,8 +147,12 @@ def write_to_csv(filename, list_of_dict):
     :return:
     """
     # Making sure to write to /tmp dir if running on AWS Lambda other wise to current dir
-    if __name__ != "__main__":
-        filename = "/tmp/"+filename
+    if __name__ == "__main__":
+        if not os.path.exists("tmp/"):
+            os.mkdir("tmp")
+        filename = "tmp/" + filename
+    else:
+        filename = "/tmp/" + filename
 
     json_serialized = json.loads(json.dumps(list_of_dict, default=json_serial))
     columns = []
