@@ -1,10 +1,19 @@
 import boto3
+from botocore.exceptions import ClientError
 import pprint
 import csv
 from datetime import datetime, date, time
+from botocore.config import Config
 import json
 import os
+import sys
+from time import sleep
 
+BOTO3_CONFIG = Config(
+    retries = dict(
+        max_attempts = 10
+    )
+)
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -20,21 +29,34 @@ def pp(item):
 
 
 def detailed_instance_patch_report(ssm_client, instance_id):
-    all_instances_patch_report = []
-    paginator = ssm_client.get_paginator('describe_instance_patches')
-    try:
-        page_iterator = paginator.paginate(InstanceId=instance_id)
-        items = []
-        for each_page in page_iterator:
-            print(each_page.get("Patches", []))
-            items.extend(each_page.get("Patches", []))
-        items = [dict(item, InstanceId=instance_id) for item in items]
-        instance_patch_report = json.loads(json.dumps(items, default=json_serial))
-        all_instances_patch_report.extend(instance_patch_report)
-    except Exception as outErr:
-        print(outErr)
-        pass
-    return all_instances_patch_report
+    retries = 1
+    success = False
+    states = ["Installed", "Missing", "Failed"]
+    while not success:
+        try:
+            all_instances_patch_report = []
+            paginator = ssm_client.get_paginator('describe_instance_patches')
+            page_iterator = paginator.paginate(InstanceId=instance_id)
+            items = []
+            for each_page in page_iterator:
+                print(each_page.get("Patches", []))
+                items.extend(each_page.get("Patches", []))
+            items = [dict(item, InstanceId=instance_id) for item in items]
+            instance_patch_report = json.loads(json.dumps(items, default=json_serial))
+            all_instances_patch_report.extend(instance_patch_report)
+            success = True
+        except ClientError as cl_err:
+            print(cl_err)
+            wait = retries * 5
+            print(f'Error! Waiting {wait} secs and re-trying...')
+            sys.stdout.flush()
+            sleep(wait)
+            retries += 1
+        except Exception as outErr:
+            print("**************")
+            print(outErr)
+            pass
+    return [i for i in all_instances_patch_report if i['State'] in states]
 
 
 def write_to_csv(filename, list_of_dict):

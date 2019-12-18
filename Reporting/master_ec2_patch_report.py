@@ -97,6 +97,7 @@ def lambda_handler(event, context):
     ec2_info = gather_ec2_instance_info(ec2_client)
     required_info_instance_ids = {item["InstanceId"]: item for item in ec2_info}
     lambda_client = boto3.client('lambda', region_name="us-east-1")
+    final_response = []
     for each_instance in required_info_instance_ids:
         print("Invoking Lambda: ", each_instance)
         response = lambda_client.invoke(
@@ -106,7 +107,7 @@ def lambda_handler(event, context):
             Payload=json.dumps(json.loads(json.dumps(required_info_instance_ids[each_instance], default=json_serial)))
         )
         print(response)
-    final_response = {}
+        final_response.append("Invoking Lambda: "+ each_instance)
 
     return {
         'statusCode': 200,
