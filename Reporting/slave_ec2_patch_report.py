@@ -19,31 +19,22 @@ def pp(item):
     pprint.pprint(item)
 
 
-def detailed_instance_patch_report(ssm_client, instance_id, states):
+def detailed_instance_patch_report(ssm_client, instance_id):
     all_instances_patch_report = []
     paginator = ssm_client.get_paginator('describe_instance_patches')
-    for each_state in states:
-        try:
-            page_iterator = paginator.paginate(InstanceId=instance_id,
-                                               Filters=[
-                                                   {
-                                                       'Key': 'State',
-                                                       'Values': [
-                                                           each_state
-                                                       ]
-                                                   }
-                                               ]
-                                               )
-            items = []
-            for each_page in page_iterator:
-                items.extend(each_page.get("Patches", []))
-            items = [dict(item, InstanceId=instance_id) for item in items]
-            instance_patch_report = json.loads(json.dumps(items, default=json_serial))
-            all_instances_patch_report.extend(instance_patch_report)
-        except Exception as outErr:
-                print(outErr)
-                pass
-    return [i for i in all_instances_patch_report if i['State'] in states]
+    try:
+        page_iterator = paginator.paginate(InstanceId=instance_id)
+        items = []
+        for each_page in page_iterator:
+            print(each_page.get("Patches", []))
+            items.extend(each_page.get("Patches", []))
+        items = [dict(item, InstanceId=instance_id) for item in items]
+        instance_patch_report = json.loads(json.dumps(items, default=json_serial))
+        all_instances_patch_report.extend(instance_patch_report)
+    except Exception as outErr:
+        print(outErr)
+        pass
+    return all_instances_patch_report
 
 
 def write_to_csv(filename, list_of_dict):
@@ -102,6 +93,7 @@ def lambda_handler(event, context):
     #     'InstanceId': 'i-0634e02aaf7cce7cc',
     #     'InstanceType': 't1.micro', 'KeyName': 'madhav-k', 'LaunchTime': '2019-12-17T03:01:34+00:00', 'Monitoring': {'State': 'disabled'}, 'Placement': {'AvailabilityZone': 'us-east-1c', 'GroupName': '', 'Tenancy': 'default'}, 'Platform': 'windows', 'PrivateDnsName': 'ip-172-31-17-43.ec2.internal', 'PrivateIpAddress': '172.31.17.43', 'ProductCodes': [], 'PublicDnsName': '', 'State': {'Code': 80, 'Name': 'stopped'}, 'StateTransitionReason': 'User initiated (2019-12-17 05:52:18 GMT)', 'SubnetId': 'subnet-1b5b6a51', 'VpcId': 'vpc-f143f18b', 'Architecture': 'x86_64', 'BlockDeviceMappings': [{'DeviceName': '/dev/sda1', 'Ebs': {'AttachTime': '2019-11-30T02:08:00+00:00', 'DeleteOnTermination': True, 'Status': 'attached', 'VolumeId': 'vol-090433522e4d6596a'}}], 'ClientToken': '', 'EbsOptimized': False, 'EnaSupport': True, 'Hypervisor': 'xen', 'IamInstanceProfile': {'Arn': 'arn:aws:iam::495830459543:instance-profile/SSM_EC2_Role', 'Id': 'AIPAXG4OMMSLYNVZVWKR6'}, 'NetworkInterfaces': [{'Attachment': {'AttachTime': '2019-11-30T02:07:59+00:00', 'AttachmentId': 'eni-attach-04800f6a8b4496f5b', 'DeleteOnTermination': True, 'DeviceIndex': 0, 'Status': 'attached'}, 'Description': '', 'Groups': [{'GroupName': 'default', 'GroupId': 'sg-0e75ff4b'}], 'Ipv6Addresses': [], 'MacAddress': '0a:bd:56:21:e3:cf', 'NetworkInterfaceId': 'eni-092cee035c2c3709d', 'OwnerId': '495830459543', 'PrivateDnsName': 'ip-172-31-17-43.ec2.internal', 'PrivateIpAddress': '172.31.17.43', 'PrivateIpAddresses': [{'Primary': True, 'PrivateDnsName': 'ip-172-31-17-43.ec2.internal', 'PrivateIpAddress': '172.31.17.43'}], 'SourceDestCheck': True, 'Status': 'in-use', 'SubnetId': 'subnet-1b5b6a51', 'VpcId': 'vpc-f143f18b', 'InterfaceType': 'interface'}], 'RootDeviceName': '/dev/sda1', 'RootDeviceType': 'ebs', 'SecurityGroups': [{'GroupName': 'default', 'GroupId': 'sg-0e75ff4b'}], 'SourceDestCheck': True, 'StateReason': {'Code': 'Client.UserInitiatedShutdown', 'Message': 'Client.UserInitiatedShutdown: User initiated shutdown'}, 'Tags': [{'Key': 'Name', 'Value': 'Window 2016'}, {'Key': 'Patch Group', 'Value': 'SRV_SATURDAY_4AM-6AM'}], 'VirtualizationType': 'hvm', 'CpuOptions': {'CoreCount': 1, 'ThreadsPerCore': 1}, 'CapacityReservationSpecification': {'CapacityReservationPreference': 'open'}, 'HibernationOptions': {'Configured': False}, 'MetadataOptions': {'State': 'applied', 'HttpTokens': 'optional', 'HttpPutResponseHopLimit': 1, 'HttpEndpoint': 'enabled'}}
     # Connection Objects
+    print(event)
     ssm_client = boto3.client('ssm', region_name="us-east-1")
 
     try:
@@ -111,8 +103,7 @@ def lambda_handler(event, context):
         bucket_name = 'madhav-ssm-logs'
 
     # Detailed Instance Patch Report
-    states = ["Installed", "Missing", "Failed"]
-    instance_patch_report = detailed_instance_patch_report(ssm_client, event["InstanceId"], states)
+    instance_patch_report = detailed_instance_patch_report(ssm_client, event["InstanceId"])
 
     s3_client = boto3.client("s3", region_name="us-east-1")
 
