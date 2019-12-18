@@ -7,3 +7,4 @@ TagEC2/.DS_Store
 /Reporting/Xlsx*
 /Reporting/bin*
 .ipynb_checkpoints/*
+/Reporting/tmp/*

@@ -254,16 +254,16 @@ def lambda_handler(event, context):
     list_of_patches = get_effective_patches(ssm_client, response_patch_base_lines)
     dt_string = datetime.now().strftime("%d_%b_%Y_%H_%M")
     patch_basel_report = "PatchBaseLineReport_" + dt_string + ".csv"
-    print(write_to_csv(patch_basel_report, list_of_patches))
+    upload_file = write_to_csv(patch_basel_report, list_of_patches)
     s3_client = boto3.client("s3", region_name="us-east-1")
 
     final_response = {}
     try:
-        result = upload_file_s3(s3_client, bucket_name, patch_basel_report)
-        final_response[os.path.basename(patch_basel_report)] = result
+        result = upload_file_s3(s3_client, bucket_name, upload_file)
+        final_response[os.path.basename(upload_file)] = result
     except Exception as err:
-        print("Error in Uploading file : " + patch_basel_report)
-        final_response[os.path.basename(patch_basel_report)] = "Upload Failed"
+        print("Error in Uploading file : " + upload_file)
+        final_response[os.path.basename(upload_file)] = "Upload Failed"
     return {
         'statusCode': 200,
         'body': final_response

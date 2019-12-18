@@ -250,16 +250,16 @@ def lambda_handler(event, context):
     dt_string = datetime.now().strftime("%d_%b_%Y_%H_%M")
     ec2_report = "EC2Report_" + dt_string + ".csv"
 
-    print(write_to_csv(ec2_report, required_info))
+    out_file = write_to_csv(ec2_report, required_info)
     s3_client = boto3.client("s3", region_name="us-east-1")
 
     final_response = {}
     try:
-        result = upload_file_s3(s3_client,bucket_name, ec2_report)
-        final_response[os.path.basename(ec2_report)] = result
+        result = upload_file_s3(s3_client,bucket_name, out_file)
+        final_response[os.path.basename(out_file)] = result
     except Exception as err:
-        print("Error in Uploading file : " + ec2_report)
-        final_response[os.path.basename(ec2_report)] = "Upload Failed"
+        print("Error in Uploading file : " + out_file)
+        final_response[os.path.basename(out_file)] = "Upload Failed"
     return {
         'statusCode': 200,
         'body': final_response

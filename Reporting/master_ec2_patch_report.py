@@ -67,17 +67,6 @@ def write_to_csv(filename, list_of_dict):
     return filename
 
 
-def upload_file_s3(client, bucket_name, to_be_upload_filename):
-    only_filename = os.path.basename(to_be_upload_filename)
-
-    try:
-        res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
-        return "File: "+only_filename + "Uploaded to bucket : "+bucket_name
-    except Exception as err:
-        print(err)
-        return err
-
-
 def lambda_handler(event, context):
     """
     Default Handler
