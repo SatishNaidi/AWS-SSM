@@ -80,6 +80,12 @@ def lambda_handler(event, context):
         print("Env Variable 'bucket_name' doesn't exits")
         bucket_name = 'madhav-ssm-logs'
 
+    try:
+        slave_function = os.environ['slave_function']
+    except Exception as err:
+        print("Env Variable 'bucket_name' doesn't exits")
+        slave_function = 'SSM-EC2PatchSlave'
+
     states = ["Installed", "Missing", "Failed"]
 
     # EC2Report
@@ -90,13 +96,13 @@ def lambda_handler(event, context):
     for each_instance in required_info_instance_ids:
         print("Invoking Lambda: ", each_instance)
         response = lambda_client.invoke(
-            FunctionName='SlaveEC2PatchReport',
+            FunctionName=slave_function,
             InvocationType='Event',
             LogType='Tail',
             Payload=json.dumps(json.loads(json.dumps(required_info_instance_ids[each_instance], default=json_serial)))
         )
         print(response)
-        final_response.append("Invoking Lambda: "+ each_instance)
+        final_response.append("Invoking Lambda: "+each_instance)
 
     return {
         'statusCode': 200,
