@@ -24,7 +24,7 @@ try:
         level_obj = logging.getLevelName(log_level)
 except KeyError:
     logger.warning("log_level Environment Variable Doesn't exist")
-    log_level = "DEBUG"
+    log_level = "WARNING"
     level_obj = logging.getLevelName(log_level)
 logger.debug('Log Level Set to : DEBUG')
 logger.setLevel(level_obj)
