@@ -1,10 +1,11 @@
 .DS_Store
 .idea/*
-TagEC2/.DS_Store
+Lambda-TagEC2/.DS_Store
 /venv/*
 /Reporting/*.xlsx
 /Reporting/*.csv
-/Reporting/Xlsx*
-/Reporting/bin*
+/Lambda-Reporting/Xlsx*
+/Lambda-Reporting/bin*
 .ipynb_checkpoints/*
-/Reporting/tmp/*
+/Lambda-Reporting/tmp/*
+tmp/*

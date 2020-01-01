@@ -1,0 +1,13 @@
+{
+  "FunctionName" : "SSM-TagEC2Instances",
+  "Runtime" : "python3.7",
+  "Role" : "arn:aws:iam::495830459543:role/FullAdmin",
+  "Handler" : "lambda_function.lambda_handler",
+  "Code" : "#This will be populated during the runtime",
+  "Description" : "Tags EC2 Instances based on Platform and ASG",
+  "Timeout" : 900,
+  "MemorySize" : 1024,
+  "Tags" : {
+      "Owner": "OwnerName"
+  }
+}

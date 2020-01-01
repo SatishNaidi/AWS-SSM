@@ -1,0 +1,19 @@
+{
+  "FunctionName" : "SSM-AddAutoApprovalDelay",
+  "Runtime" : "python3.7",
+  "Role" : "arn:aws:iam::495830459543:role/FullAdmin",
+  "Handler" : "lambda_function.lambda_handler",
+  "Code" : "#This will be populated during the runtime",
+  "Description" : "Adds AutoApproval Delay to PatchBaselines",
+  "Timeout" : 900,
+  "MemorySize" : 1024,
+  "Environment" : {
+      "Variables": {
+          "log_level": "WARNING",
+          "patch_baselines": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches"
+      }
+  },
+  "Tags" : {
+      "Owner": "OwnerName"
+  }
+}
