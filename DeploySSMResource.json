@@ -43,18 +43,18 @@
         },
         "Duration": {
             "Description": "max duration of the maintenance window in hours",
-            "Default": 3,
+            "Default": 2,
             "Type": "Number"
         },
         "Cutoff": {
             "Description": "hours before window closure to cut off new activity",
-            "Default": 1,
+            "Default": 0,
             "Type": "Number",
             "ConstraintDescription": "must be < (Duration - 1)"
         },
         "AllowUnregisteredTargets": {
             "Description": "allow or disallow any individual managed instance",
-            "Default": true,
+            "Default": false,
             "Type": "String",
             "AllowedValues": [
                 true,
