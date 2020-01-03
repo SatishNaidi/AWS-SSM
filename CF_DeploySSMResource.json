@@ -73,30 +73,6 @@
         }
     },
     "Resources": {
-        "AutomationServiceRole": {
-            "Type": "AWS::IAM::Role",
-            "Properties": {
-                "AssumeRolePolicyDocument": {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Principal": {
-                                "Service": [
-                                    "ssm.amazonaws.com",
-                                    "ec2.amazonaws.com"
-                                ]
-                            },
-                            "Action": "sts:AssumeRole"
-                        }
-                    ]
-                },
-                "ManagedPolicyArns": [
-                    "arn:aws:iam::aws:policy/service-role/AmazonSSMAutomationRole"
-                ],
-                "Path": "/"
-            }
-        },
         "CreateMaintenanceWindowWIN": {
             "Type": "AWS::SSM::MaintenanceWindow",
             "Properties": {
@@ -219,12 +195,6 @@
             "Properties": {
                 "MaxErrors": 50,
                 "Description": "Run UpdateSSMAgent command for all Patch Group values",
-                "ServiceRoleArn": {
-                    "Fn::GetAtt": [
-                        "AutomationServiceRole",
-                        "Arn"
-                    ]
-                },
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
@@ -253,12 +223,6 @@
                                 "Install"
                             ]
                         },
-                        "ServiceRoleArn": {
-                            "Fn::GetAtt": [
-                                "AutomationServiceRole",
-                                "Arn"
-                            ]
-                        }
                     }
                 },
                 "WindowId": {
@@ -351,12 +315,6 @@
             "Properties": {
                 "MaxErrors": 50,
                 "Description": "Run UpdateSSMAgent command for all Patch Group values",
-                "ServiceRoleArn": {
-                    "Fn::GetAtt": [
-                        "AutomationServiceRole",
-                        "Arn"
-                    ]
-                },
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
@@ -383,12 +341,6 @@
                             "Operation": [
                                 "Scan",
                                 "Install"
-                            ]
-                        },
-                        "ServiceRoleArn": {
-                            "Fn::GetAtt": [
-                                "AutomationServiceRole",
-                                "Arn"
                             ]
                         }
                     }
@@ -483,12 +435,6 @@
             "Properties": {
                 "MaxErrors": 50,
                 "Description": "Run UpdateSSMAgent command for all Patch Group values",
-                "ServiceRoleArn": {
-                    "Fn::GetAtt": [
-                        "AutomationServiceRole",
-                        "Arn"
-                    ]
-                },
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
@@ -515,12 +461,6 @@
                             "Operation": [
                                 "Scan",
                                 "Install"
-                            ]
-                        },
-                        "ServiceRoleArn": {
-                            "Fn::GetAtt": [
-                                "AutomationServiceRole",
-                                "Arn"
                             ]
                         }
                     }
