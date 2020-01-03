@@ -68,7 +68,7 @@
         },
         "LogsBucket": {
             "Description": "Provide the bucket name to store the logs",
-            "Default": "lambda-logs",
+            "Default": "resource-data-ssm",
             "Type": "String"
         }
     },
@@ -237,16 +237,16 @@
                         ]
                     }
                 ],
-                "Name": "UpdateSSMAgent-task-Win",
+                "Name": "RunWindowsPatchBaseLine",
                 "TaskArn": "AWS-RunPatchBaseline",
                 "TaskInvocationParameters": {
                     "MaintenanceWindowRunCommandParameters": {
                         "TimeoutSeconds": 600,
-                        "Comment": "RunCommand task registered to UpdateSSMAgent-maintenance-window",
+                        "Comment": "RunCommand task registered to RunWindowsPatchBaseLine",
                         "OutputS3BucketName": {
                             "Ref": "LogsBucket"
                         },
-                        "OutputS3KeyPrefix": "Patch",
+                        "OutputS3KeyPrefix": "PatchLogs",
                         "Parameters": {
                             "Operation": [
                                 "Scan",
@@ -369,16 +369,16 @@
                         ]
                     }
                 ],
-                "Name": "UpdateSSMAgent-task-Linux",
+                "Name": "RunLinuxPatchBaseLine",
                 "TaskArn": "AWS-RunPatchBaseline",
                 "TaskInvocationParameters": {
                     "MaintenanceWindowRunCommandParameters": {
                         "TimeoutSeconds": 600,
-                        "Comment": "RunCommand task registered to UpdateSSMAgent-maintenance-window",
+                        "Comment": "RunCommand task registered to RunLinuxPatchBaseLine",
                         "OutputS3BucketName": {
                             "Ref": "LogsBucket"
                         },
-                        "OutputS3KeyPrefix": "Patch",
+                        "OutputS3KeyPrefix": "PatchLogs",
                         "Parameters": {
                             "Operation": [
                                 "Scan",
@@ -501,16 +501,16 @@
                         ]
                     }
                 ],
-                "Name": "UpdateSSMAgent-task-AMZNLNX",
+                "Name": "RunAMZLinuxPatchBaseLine",
                 "TaskArn": "AWS-RunPatchBaseline",
                 "TaskInvocationParameters": {
                     "MaintenanceWindowRunCommandParameters": {
                         "TimeoutSeconds": 600,
-                        "Comment": "RunCommand task registered to UpdateSSMAgent-maintenance-window",
+                        "Comment": "RunCommand task registered to RunAMZLinuxPatchBaseLine",
                         "OutputS3BucketName": {
                             "Ref": "LogsBucket"
                         },
-                        "OutputS3KeyPrefix": "Patch",
+                        "OutputS3KeyPrefix": "PatchLogs",
                         "Parameters": {
                             "Operation": [
                                 "Scan",
@@ -548,6 +548,18 @@
                     }
                 ]
             }
+        },
+        "BasicResourceDataSync": {
+          "Type": "AWS::SSM::ResourceDataSync",
+          "Properties": {
+            "SyncName": "SSM-ResourceDataSync",
+            "BucketName": {
+                "Ref": "LogsBucket"
+            },
+            "BucketRegion": "us-east-1",
+            "SyncFormat": "JsonSerDe",
+            "BucketPrefix": "InventoryLogs"
+          }
         }
     },
     "Outputs": {
