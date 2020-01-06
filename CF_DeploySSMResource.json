@@ -25,19 +25,19 @@
     "Parameters": {
         "SchedExpWin": {
             "Description": "schedule to run the maintenance window",
-            "Default": "cron(0 10 * ? * * *)",
+            "Default": "cron(0 0 4 ? * SAT *)",
             "Type": "String",
             "ConstraintDescription": "must specify a valid cron or rate expression"
         },
         "SchedExpLinux": {
             "Description": "schedule to run the maintenance window",
-            "Default": "cron(0 50 14 ? * * *)",
+            "Default": "cron(0 0 3 ? * SAT *)",
             "Type": "String",
             "ConstraintDescription": "must specify a valid cron or rate expression"
         },
         "SchedExpAMZLinux": {
             "Description": "schedule to run the maintenance window",
-            "Default": "cron(0 50 14 ? * * *)",
+            "Default": "cron(0 0 3 ? * SAT *)",
             "Type": "String",
             "ConstraintDescription": "must specify a valid cron or rate expression"
         },
