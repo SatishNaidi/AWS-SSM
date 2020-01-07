@@ -23,11 +23,17 @@ def find_second_tuesday_of_month(month):
     :return:
     """
     now = datetime.now()
+    if month == 0:
+        month = 12
+        year = now.year-1
+    else:
+        year = now.year
+
     # print(now.month)
-    first_day_of_month = datetime(now.year, month, 1)
+    first_day_of_month = datetime(year, month, 1)
     tuesday = 1  # Selected 1 since we need Tuesday
     first_tuesday = first_day_of_month + timedelta(
-        days=((tuesday - calendar.monthrange(now.year, month)[0]) + 7) % 7)
+        days=((tuesday - calendar.monthrange(year, month)[0]) + 7) % 7)
     # days=0 for first tuesday, days=7 for second tuesday of the month and so on
     second_tuesday = first_tuesday + timedelta(days=7)  # Finding the Second Tuesday of the month
     return second_tuesday.date()
