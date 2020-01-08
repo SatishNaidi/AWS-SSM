@@ -346,8 +346,8 @@ def lambda_handler(event, context):
     try:
         bucket_name = os.environ['bucket_name']
     except KeyError:
-        logger.warning("Env Variable 'bucket_name' doesn't exits")
-        bucket_name = "2ftv-ssm-logs-42212-s3"
+        logger.error("Env Variable 'bucket_name' doesn't exits")
+        sys.exit()
     logger.info("Bucket for writing logs bucket_name = {}".format(bucket_name))
 
     # PatchBaselines Report
