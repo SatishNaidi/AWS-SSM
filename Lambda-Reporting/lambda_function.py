@@ -400,9 +400,17 @@ def lambda_handler(event, context):
     for each_ec2 in required_info:
         each_ec2.update(instance_patch_state.get(each_ec2["InstanceId"], {}))
         each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
+
+        # Removes unwanted keys from EC2Report
+        keys_to_deleted = ["InstalledOtherCount","InstalledRejectedCount","UnreportedNotApplicableCount", "NotApplicableCount"]
+        existing_keys = each_ec2.keys()
+        for each_key in keys_to_deleted:
+            if each_key in existing_keys:
+                del each_ec2[each_key]
+
         if each_ec2.get("AgentVersion"):
             each_ec2["SSMManaged"] = "Yes"
-            if each_ec2.get("InstalledRejectedCount",0) != 0 or each_ec2.get("MissingCount",0) != 0 or each_ec2.get("FailedCount") != 0:
+            if each_ec2.get("MissingCount",0) != 0 or each_ec2.get("FailedCount") != 0:
                 each_ec2["ComplianceState"] = "Non Compliant"
             else:
                 each_ec2["ComplianceState"] = "Compliant"
