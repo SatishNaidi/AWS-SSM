@@ -413,7 +413,7 @@ def lambda_handler(event, context):
 
         if each_ec2.get("AgentVersion"):
             each_ec2["SSMManaged"] = "Yes"
-            if each_ec2.get("MissingCount",0) != 0 or each_ec2.get("FailedCount") != 0:
+            if each_ec2.get("MissingCount",0) != 0 or each_ec2.get("FailedCount", 0) != 0:
                 each_ec2["ComplianceState"] = "Non Compliant"
             else:
                 each_ec2["ComplianceState"] = "Compliant"
