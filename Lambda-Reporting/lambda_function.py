@@ -402,12 +402,12 @@ def lambda_handler(event, context):
         each_ec2.update(instance_patch_info.get(each_ec2["InstanceId"], {}))
 
         # Removes unwanted keys from EC2Report
-        keys_to_deleted = [
+        keys_to_be_deleted = [
             "InstalledOtherCount", "InstalledRejectedCount", "UnreportedNotApplicableCount", "NotApplicableCount",
             "AssociationOverview"
         ]
         existing_keys = each_ec2.keys()
-        for each_key in keys_to_deleted:
+        for each_key in keys_to_be_deleted:
             if each_key in existing_keys:
                 del each_ec2[each_key]
 
