@@ -411,15 +411,15 @@ def lambda_handler(event, context):
             if each_key in existing_keys:
                 del each_ec2[each_key]
 
-        if each_ec2.get("MissingCount", 0) != 0 or each_ec2.get("FailedCount", 0) != 0:
-            each_ec2["ComplianceState"] = "Non Compliant"
-        else:
-            each_ec2["ComplianceState"] = "Compliant"
-
         if each_ec2.get("AgentVersion"):
             each_ec2["SSMManaged"] = "Yes"
+            if each_ec2.get("MissingCount", 0) != 0 or each_ec2.get("FailedCount", 0) != 0:
+                each_ec2["ComplianceState"] = "Non Compliant"
+            else:
+                each_ec2["ComplianceState"] = "Compliant"
         else:
             each_ec2["SSMManaged"] = "No"
+            each_ec2["ComplianceState"] = "Non Compliant"
 
     csvs_list.append(write_to_csv("EC2Report.csv", required_info))
     s3_client = boto3.client("s3", region_name="us-east-1")
