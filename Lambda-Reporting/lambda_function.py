@@ -290,23 +290,49 @@ def patch_base_line_names_to_ids(client, patch_baselines):
         return False
 
 
+def describe_effective_patches_for_pb(ssm_client, pbid, pbname, next_token):
+    # ssm_client = boto3.client('ssm', region_name="us-east-1")
+    result_list = []
+    try:
+        if next_token == '':
+            patch_baseline_response = ssm_client.describe_effective_patches_for_patch_baseline(
+                BaselineId=pbid
+                # MaxResults=40
+            )
+        else:
+            patch_baseline_response = ssm_client.describe_effective_patches_for_patch_baseline(
+                BaselineId=pbid,
+                NextToken=next_token
+                # MaxResults=40
+            )
+        json_serialized = json.loads(json.dumps(patch_baseline_response, default=json_serial))
+        next_token = json_serialized.get("NextToken")
+        for each_patch in json_serialized["EffectivePatches"]:
+            new_item = each_patch["Patch"]
+            new_item.update(each_patch["PatchStatus"])
+            new_item.update({"PBName": pbname, "PBId": pbid})
+            result_list.append(new_item)
+    except ClientError as cl_err:
+        next_token = None
+        logger.error(f"{cl_err} for {pbname}:{pbid}")
+    except Exception as err:
+        next_token = None
+        logger.error(f"{err} for {pbname}:{pbid}")
+
+    logger.info(f"Len master_patch_report: {len(result_list)}")
+    return result_list, next_token
+
+
 def get_effective_patches(client, patch_base_lines):
     logger.info(f"patch_base_lines: {patch_base_lines}")
     list_of_patches = []
     for pbid, pbname in patch_base_lines.items():
-        try:
-            patch_baseline_response = client.describe_effective_patches_for_patch_baseline(
-                BaselineId=pbid
-            )
-            json_serialized = json.loads(json.dumps(patch_baseline_response, default=json_serial))
-            for each_patch in json_serialized["EffectivePatches"]:
-                new_item = each_patch["Patch"]
-                new_item.update(each_patch["PatchStatus"])
-                new_item.update({"PBName": pbname, "PBId": pbid})
-                list_of_patches.append(new_item)
-        except Exception as err:
-            logger.warning(f"{err} for {pbname}:{pbid}")
-    logger.debug(f"list_of_patches: {list_of_patches}")
+        next_token = ''
+        while next_token is not None:
+            result_instances, next_token = describe_effective_patches_for_pb(client, pbid, pbname, next_token)
+            list_of_patches.extend(result_instances)
+
+    # logger.debug(f"list_of_patches: {list_of_patches}")
     logger.info(f"Length of list_of_patches: {len(list_of_patches)}")
     return list_of_patches
 

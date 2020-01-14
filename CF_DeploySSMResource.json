@@ -145,8 +145,7 @@
                                     }
                                 ]
                             },
-                            "ApproveAfterDays": 7,
-                            "ComplianceLevel": "CRITICAL"
+                            "ApproveAfterDays": 7
                         },
                         {
                             "PatchFilterGroup": {
@@ -183,8 +182,7 @@
                                     }
                                 ]
                             },
-                            "ApproveAfterDays": 7,
-                            "ComplianceLevel": "CRITICAL"
+                            "ApproveAfterDays": 7
                         }
                     ]
                 }
@@ -303,8 +301,7 @@
                                     }
                                 ]
                             },
-                            "ApproveAfterDays": 7,
-                            "ComplianceLevel": "CRITICAL"
+                            "ApproveAfterDays": 7
                         }
                     ]
                 }
@@ -423,8 +420,7 @@
                                     }
                                 ]
                             },
-                            "ApproveAfterDays": 7,
-                            "ComplianceLevel": "CRITICAL"
+                            "ApproveAfterDays": 7
                         }
                     ]
                 }
