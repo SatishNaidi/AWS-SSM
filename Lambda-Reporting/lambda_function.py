@@ -309,8 +309,9 @@ def describe_effective_patches_for_pb(ssm_client, pbid, pbname, next_token):
         next_token = json_serialized.get("NextToken")
         for each_patch in json_serialized["EffectivePatches"]:
             new_item = each_patch["Patch"]
+            deployment_status = each_patch.get("PatchStatus",{}).get("DeploymentStatus", "NotSpecified")
             new_item.update(each_patch["PatchStatus"])
-            new_item.update({"PBName": pbname, "PBId": pbid})
+            new_item.update({"PBName": pbname, "PBId": pbid, "DeploymentStatus": deployment_status })
             result_list.append(new_item)
     except ClientError as cl_err:
         next_token = None
