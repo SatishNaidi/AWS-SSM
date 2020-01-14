@@ -133,7 +133,7 @@
                                     },
                                     {
                                         "Values": [
-                                            "Critical"
+                                            "*"
                                         ],
                                         "Key": "MSRC_SEVERITY"
                                     },
@@ -152,7 +152,7 @@
                                 "PatchFilters": [
                                     {
                                         "Values": [
-                                            "Critical"
+                                            "*"
                                         ],
                                         "Key": "MSRC_SEVERITY"
                                     },
@@ -289,7 +289,7 @@
                                     },
                                     {
                                         "Values": [
-                                            "Critical"
+                                            "*"
                                         ],
                                         "Key": "SEVERITY"
                                     },
@@ -408,7 +408,7 @@
                                     },
                                     {
                                         "Values": [
-                                            "Critical"
+                                            "*"
                                         ],
                                         "Key": "SEVERITY"
                                     },
