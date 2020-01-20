@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Maintenance Windows for Updating SSM Agent",
+    "Description": "Creates SSM Stack with all services in Place",
     "Metadata": {
         "AWS::CloudFormation::Interface": {
             "ParameterGroups": [
@@ -12,6 +12,7 @@
                         "SchedExpWin",
                         "SchedExpLinux",
                         "SchedExpAMZLinux",
+                        "ScanPatchSchedule",
                         "Duration",
                         "Cutoff",
                         "AllowUnregisteredTargets",
@@ -27,19 +28,25 @@
             "Description": "schedule to run the maintenance window",
             "Default": "cron(0 0 4 ? * SAT *)",
             "Type": "String",
-            "ConstraintDescription": "must specify a valid cron or rate expression"
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
         },
         "SchedExpLinux": {
             "Description": "schedule to run the maintenance window",
             "Default": "cron(0 0 3 ? * SAT *)",
             "Type": "String",
-            "ConstraintDescription": "must specify a valid cron or rate expression"
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
         },
         "SchedExpAMZLinux": {
             "Description": "schedule to run the maintenance window",
             "Default": "cron(0 0 3 ? * SAT *)",
             "Type": "String",
-            "ConstraintDescription": "must specify a valid cron or rate expression"
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+        },
+        "ScanPatchSchedule": {
+            "Description": "schedule to run the maintenance window",
+            "Default": "rate(1 day)",
+            "Type": "String",
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
         },
         "Duration": {
             "Description": "max duration of the maintenance window in hours",
@@ -73,6 +80,87 @@
         }
     },
     "Resources": {
+        "ScanMaintenanceWindow": {
+            "Type": "AWS::SSM::MaintenanceWindow",
+            "Properties": {
+                "Description": "Maintenance window for Windows Servers",
+                "AllowUnassociatedTargets": {
+                    "Ref": "AllowUnregisteredTargets"
+                },
+                "Cutoff": {
+                    "Ref": "Cutoff"
+                },
+                "Schedule": {
+                    "Ref": "ScanPatchSchedule"
+                },
+                "Duration": {
+                    "Ref": "Duration"
+                },
+                "Name": "ScanPatchInfoAllSystems"
+            }
+        },
+        "ScanTargets": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Scan for Patches in All instances",
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "LNX_SRV_SATURDAY_3AM-5AM",
+                            "SRV_SATURDAY_4AM-6AM",
+                            "AMZN_LNX_SRV_SATURDAY_3AM-5AM"
+
+                        ]
+                    }
+                ],
+                "Name": "ScanPatchesAllTargets"
+            }
+        },
+        "ScanTask": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Scans for patches in all instances",
+                "Priority": 1,
+                "MaxConcurrency": 100,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "ScanTargets"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunOnlyScan",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Scan"
+                            ]
+                        },
+                    }
+                },
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
         "CreateMaintenanceWindowWIN": {
             "Type": "AWS::SSM::MaintenanceWindow",
             "Properties": {
@@ -192,7 +280,7 @@
             "Type": "AWS::SSM::MaintenanceWindowTask",
             "Properties": {
                 "MaxErrors": 50,
-                "Description": "Run UpdateSSMAgent command for all Patch Group values",
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
@@ -311,7 +399,7 @@
             "Type": "AWS::SSM::MaintenanceWindowTask",
             "Properties": {
                 "MaxErrors": 50,
-                "Description": "Run UpdateSSMAgent command for all Patch Group values",
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
@@ -430,7 +518,7 @@
             "Type": "AWS::SSM::MaintenanceWindowTask",
             "Properties": {
                 "MaxErrors": 50,
-                "Description": "Run UpdateSSMAgent command for all Patch Group values",
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
                 "Priority": 1,
                 "MaxConcurrency": 50,
                 "Targets": [
