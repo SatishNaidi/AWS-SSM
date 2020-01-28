@@ -4,6 +4,16 @@ import os
 import json
 import calendar
 import pprint
+import time
+
+# Setting the timezone for accurate days calculation
+# print(datetime.now())
+os.environ['TZ'] = 'US/Eastern'
+# os.environ['TZ'] = 'US/Pacific'
+# os.environ['TZ'] = 'Pacific/Honolulu'
+time.tzset()
+print(f"Current time zone: {time.tzname}")
+print(datetime.now())
 
 
 def json_serial(obj):
