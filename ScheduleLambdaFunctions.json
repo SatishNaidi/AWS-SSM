@@ -4,7 +4,7 @@
     "Parameters": {
         "CronExpression": {
             "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
-            "Default": "rate(1 day)",
+            "Default": "cron(00 20 * * ? *)",
             "Type": "String"
         }
     },
