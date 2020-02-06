@@ -344,10 +344,23 @@ def upload_file_s3(client, bucket_name, to_be_upload_filename):
     try:
         res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
         logger.debug(res)
-        return "File: " + only_filename + "Uploaded to bucket : " + bucket_name
+        return "File: " + only_filename + " Uploaded to bucket : " + bucket_name
     except Exception as err:
         logger.error(err)
         return err
+
+
+def get_account_alias():
+    """
+    Returns the account alias
+    :return:
+    """
+    try:
+        alias = boto3.client('iam').list_account_aliases()['AccountAliases'][0]
+        return alias
+    except Exception as err:
+        logger.error(err)
+        sys.exit(127)
 
 
 def lambda_handler(event, context):
@@ -362,6 +375,7 @@ def lambda_handler(event, context):
     ssm_client = boto3.client('ssm', region_name="us-east-1")
     logger.debug("{}: SSM Client Connection Object Created".format(ssm_client))
     csvs_list = []
+    account_name = get_account_alias()
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
@@ -454,7 +468,7 @@ def lambda_handler(event, context):
 
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
-    consolidated_report_name = "ConsolidatedReport_" + dt_string + ".xlsx"
+    consolidated_report_name = account_name + "_" + dt_string + ".xlsx"
     xls_file = convert_csv_to_excel(consolidated_report_name, csvs_list)
     logger.debug(xls_file)
     final_response = {}
