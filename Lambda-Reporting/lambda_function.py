@@ -370,6 +370,7 @@ def lambda_handler(event, context):
     # Logging Priority EX: DEBUG will logs everything, while ERROR will only logs ERROR and CRITICAL
     # DEBUG, INFO, WARNING, ERROR, CRITICAL
     # Connection Objects
+    print(event)
     ec2_client = boto3.client('ec2', region_name="us-east-1")
     logger.debug("{}: EC2 Client Connection Object Created".format(ec2_client))
     ssm_client = boto3.client('ssm', region_name="us-east-1")

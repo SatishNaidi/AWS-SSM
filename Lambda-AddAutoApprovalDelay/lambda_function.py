@@ -120,6 +120,7 @@ def update_delay_for_patch_baseline(client, to_be_modified_baselines, delay_days
 
 
 def lambda_handler(event, context):
+    print(event)
     regions = ["us-east-1", "us-east-2"]
     all_regions_response = {}
     delay_days = calculate_days_from_patchday()

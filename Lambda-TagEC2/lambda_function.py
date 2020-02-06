@@ -94,6 +94,7 @@ def add_tags(ec2_conn_obj, tag_info):
 
 def lambda_handler(event, context):
     # Make sure to add the regions which you do operate
+    print(event)
     regions = ["us-east-1", "us-east-2"]
     tag_name = "Patch Group"
     custom_tag_info = {
