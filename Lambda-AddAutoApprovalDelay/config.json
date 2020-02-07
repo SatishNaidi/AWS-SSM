@@ -10,7 +10,8 @@
   "Environment" : {
       "Variables": {
           "log_level": "WARNING",
-          "patch_baselines": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches"
+          "patch_baselines": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches",
+          "account_environment": "NONPROD"
       }
   },
   "Tags" : {

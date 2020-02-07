@@ -49,7 +49,7 @@ def find_second_tuesday_of_month(month):
     return second_tuesday.date()
 
 
-def calculate_days_from_patchday():
+def calculate_days_from_patchday(env):
     """
     :return: return the numbers of days lapsed from the second tuesday of the month, If any error returns False Boolean
     """
@@ -60,7 +60,7 @@ def calculate_days_from_patchday():
         # date_object = datetime.strptime(patch_date, '%b-%d-%Y').date()
 
         diff = today - patch_date
-        if int(diff.days) < 0:
+        if (env == "PROD" and int(diff.days) < 10) or (int(diff.days) < 0):
             patch_date = find_second_tuesday_of_month(month-1)
             today = date.today()
             diff = today - patch_date
@@ -123,8 +123,6 @@ def lambda_handler(event, context):
     print(event)
     regions = ["us-east-1", "us-east-2"]
     all_regions_response = {}
-    delay_days = calculate_days_from_patchday()
-    print("Days from Patch Tuesday: ", delay_days)
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
     except Exception as err:
@@ -132,6 +130,17 @@ def lambda_handler(event, context):
         # return "Specified Env Variable doesn't exits")
         patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
         # patch_date = "Oct-08-2019"
+
+    try:
+        account_environment = os.environ['account_environment']
+
+    except Exception as err:
+        print("Environment Variable 'account_environment' doesn't exits")
+        # return "Specified Env Variable doesn't exits")
+        account_environment = "NONPROD"
+
+    delay_days = calculate_days_from_patchday(account_environment)
+    print("Days from Patch Tuesday: ", delay_days)
 
     for each_region in regions:
         client = boto3.client('ssm', region_name=each_region)
