@@ -35,7 +35,7 @@ def find_second_tuesday_of_month(month):
     now = datetime.now()
     if month == 0:
         month = 12
-        year = now.year-1
+        year = now.year - 1
     else:
         year = now.year
 
@@ -51,7 +51,19 @@ def find_second_tuesday_of_month(month):
 
 def calculate_days_from_patchday(env):
     """
-    :return: return the numbers of days lapsed from the second tuesday of the month, If any error returns False Boolean
+    return: return the numbers of days lapsed from the second tuesday of the month, If any error returns False Boolean
+    if env ==PROD and today is 12feb2020
+        second tuesday of this month is 11feb and diff between 11feb and 12feb is <10days(wait atleast for 10days for
+        prod)
+        so we have to calc 2nd tuesday from previous month which is jan14
+        and the diff between jan14 and today is 29days and this function returns 29days as a result
+        if env ==NONPROD and today is 7feb2020
+        second tuesday of this month is 11feb and diff between 7feb and 11feb is negative (<0days)
+        so we have to calc 2nd tuesday from previous month which is jan14
+        and the diff between jan14 and 7feb is 24days and this function returns 24days as a result
+        if env ==NONPROD and today is 12feb2020
+        second tuesday of this month is 11feb and diff between 12feb and 11feb is 1day which is not negative
+        and the diff between 11feb and 12feb is 1day and this function returns 1day as a resul t
     """
     try:
         today = date.today()
@@ -61,7 +73,7 @@ def calculate_days_from_patchday(env):
 
         diff = today - patch_date
         if (env == "PROD" and int(diff.days) < 10) or (int(diff.days) < 0):
-            patch_date = find_second_tuesday_of_month(month-1)
+            patch_date = find_second_tuesday_of_month(month - 1)
             today = date.today()
             diff = today - patch_date
             return int(diff.days)
@@ -97,7 +109,7 @@ def collect_all_patchbaselines(client, patch_baselines):
                 )
                 # pprint.pprint(response)
                 patch_rules = response.get("ApprovalRules", {}).get("PatchRules", {})
-                response_pages[base_line_id]= patch_rules
+                response_pages[base_line_id] = patch_rules
             return response_pages
     except Exception as Err:
         print(Err)
@@ -157,5 +169,6 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     import pdb
+
     pdb.set_trace()
     pprint.pprint(lambda_handler({}, {}))

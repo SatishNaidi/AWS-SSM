@@ -338,16 +338,34 @@ def get_effective_patches(client, patch_base_lines):
     return list_of_patches
 
 
-def upload_file_s3(client, bucket_name, to_be_upload_filename):
+def upload_file_s3(client, bucket_name, s3_folder, to_be_upload_filename):
     logger.debug(f"Bucket Name:{bucket_name}, LocalFile : {to_be_upload_filename}")
     only_filename = os.path.basename(to_be_upload_filename)
     try:
-        res = client.upload_file(to_be_upload_filename, bucket_name, only_filename)
+        res = client.upload_file(to_be_upload_filename, bucket_name, s3_folder+only_filename)
         logger.debug(res)
         return "File: " + only_filename + " Uploaded to bucket : " + bucket_name
     except Exception as err:
         logger.error(err)
         return err
+
+
+def get_parameter_from_store(parameter_name):
+    """
+    :param parameter_name:
+    :return:
+    """
+    account_id = boto3.client('sts').get_caller_identity()['Account']
+    try:
+        ssm_client = boto3.client('ssm')
+        response = ssm_client.get_parameter(
+            Name=parameter_name
+        )
+        value = response['Parameter']['Value']
+    except Exception as err:
+        value = str(account_id)
+        logger.error(err)
+    return value
 
 
 def get_account_alias():
@@ -376,7 +394,8 @@ def lambda_handler(event, context):
     ssm_client = boto3.client('ssm', region_name="us-east-1")
     logger.debug("{}: SSM Client Connection Object Created".format(ssm_client))
     csvs_list = []
-    account_name = get_account_alias()
+    # account_name = get_account_alias()
+    account_name = get_parameter_from_store("/account/AccountPrefix")
 
     try:
         patch_baselines = os.environ['patch_baselines'].split(",")
@@ -469,12 +488,13 @@ def lambda_handler(event, context):
 
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
-    consolidated_report_name = account_name + "_" + dt_string + ".xlsx"
+    s3_folder = current_date.strftime("%Y/%m/%d/")
+    consolidated_report_name = account_name + "_SSM_Report_" + dt_string + ".xlsx"
     xls_file = convert_csv_to_excel(consolidated_report_name, csvs_list)
     logger.debug(xls_file)
     final_response = {}
     try:
-        result = upload_file_s3(s3_client, bucket_name, xls_file)
+        result = upload_file_s3(s3_client, bucket_name, s3_folder, xls_file)
         logger.info(result)
         final_response[os.path.basename(xls_file)] = result
     except Exception as err:
