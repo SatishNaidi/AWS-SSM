@@ -126,11 +126,12 @@ def lambda_handler(event, context):
                     each_item["to_be_added_tag"] = {}
                 each_item["to_be_added_tag"][tag_name] = each_item["existing_tags"].get(
                     to_be_copied_tag_auto_scaling_group, "RequestorSLID Doesn't exits")
-            if each_item.get("to_be_added_tag", {}).items() <= each_item.get("existing_tags", {}).items():
-                response.append("Tags Exists for " + each_item["InstanceId"])
-            else:
-                response.append("Tags doesn't Exists for " + each_item["InstanceId"])
-                response.append(add_tags(ec2_conn_obj, each_item))
+            if "Patch Group" not in each_item.get("existing_tags", {}).keys():
+                if each_item.get("to_be_added_tag", {}).items() <= each_item.get("existing_tags", {}).items():
+                    response.append("Tags Exists for " + each_item["InstanceId"])
+                else:
+                    response.append("Tags doesn't Exists for " + each_item["InstanceId"])
+                    response.append(add_tags(ec2_conn_obj, each_item))
         final_response[region] = response
     return {
         'statusCode': 200,
