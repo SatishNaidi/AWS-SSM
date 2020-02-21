@@ -1,0 +1,21 @@
+{
+  "FunctionName" : "SSM-UpdateRejectedPatches",
+  "Runtime" : "python3.7",
+  "Role" : "arn:aws:iam::495830459543:role/FullAdmin",
+  "Handler" : "lambda_function.lambda_handler",
+  "Code" : "#This will be populated during the runtime",
+  "Description" : "Updates the rejected patches for Win Patch Baselines",
+  "Timeout" : 900,
+  "MemorySize" : 1024,
+  "Environment" : {
+      "Variables": {
+          "log_level": "WARNING",
+          "patch_baselines": "WindowsApprovedPatches",
+          "patch_reject_filename": "NewFile.txt",
+          "bucket_name": "crossaccount-bucket-naidi"
+      }
+  },
+  "Tags" : {
+      "Owner": "OwnerName"
+  }
+}
