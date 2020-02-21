@@ -55,6 +55,7 @@ def ec2_list_of_instances(ec2_conn_obj, custom_tag_info, tag_name):
 
         tag_value = None
         for each_instance in all_instances:
+            tag_value = None
             image_id = each_instance.get("imageID", "none")
             platform = each_instance.get("Platform", "none")
             image_name = list_of_images.get(image_id, "none")
