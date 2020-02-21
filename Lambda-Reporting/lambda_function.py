@@ -508,4 +508,6 @@ def lambda_handler(event, context):
 
 
 if __name__ == "__main__":
+    import pdb
+    pdb.set_trace()
     pprint.pprint(lambda_handler({}, {}))

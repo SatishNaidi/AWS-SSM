@@ -23,6 +23,20 @@
                 }
             }
         },
+        "InvokeLambdaPermissionUpdateRejectedPatches": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "FunctionName": "SSM-UpdateRejectedPatches",
+                "Action": "lambda:InvokeFunction",
+                "Principal": "events.amazonaws.com",
+                "SourceArn": {
+                    "Fn::GetAtt": [
+                        "ScheduledRule",
+                        "Arn"
+                    ]
+                }
+            }
+        },
         "InvokeLambdaPermissionReporting": {
             "Type": "AWS::Lambda::Permission",
             "Properties": {
@@ -72,6 +86,10 @@
                     {
                         "Arn": { "Fn::Join" : [ ":", [ "arn:aws:lambda", { "Ref" : "AWS::Region" }, { "Ref": "AWS::AccountId" }, "function:SSM-TagEC2Instances" ] ] },
                         "Id": "TagEC2Instances"
+                    },
+                                        {
+                        "Arn": { "Fn::Join" : [ ":", [ "arn:aws:lambda", { "Ref" : "AWS::Region" }, { "Ref": "AWS::AccountId" }, "function:SSM-UpdateRejectedPatches" ] ] },
+                        "Id": "UpdateRejectedPatches"
                     }
                 ]
             }
