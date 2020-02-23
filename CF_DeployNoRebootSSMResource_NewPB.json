@@ -16,7 +16,6 @@
                         "Duration",
                         "Cutoff",
                         "AllowUnregisteredTargets",
-                        "GatherInventorySchedule",
                         "LogsBucket"
                     ]
                 }
@@ -68,11 +67,6 @@
                 false
             ]
         },
-        "GatherInventorySchedule": {
-            "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
-            "Default": "rate(12 hours)",
-            "Type": "String"
-        },
         "LogsBucket": {
             "Description": "Provide the bucket name to store the logs",
             "Default": "resource-data-ssm",
@@ -83,7 +77,7 @@
         "ScanMaintenanceWindow": {
             "Type": "AWS::SSM::MaintenanceWindow",
             "Properties": {
-                "Description": "Maintenance window for Windows Servers",
+                "Description": "Maintenance window for ScanPatchInfoNoRebootSystems",
                 "AllowUnassociatedTargets": {
                     "Ref": "AllowUnregisteredTargets"
                 },
@@ -96,13 +90,13 @@
                 "Duration": {
                     "Ref": "Duration"
                 },
-                "Name": "ScanPatchInfoAllSystems"
+                "Name": "ScanPatchInfoNoRebootSystems"
             }
         },
         "ScanTargets": {
             "Type": "AWS::SSM::MaintenanceWindowTarget",
             "Properties": {
-                "Description": "Scan for Patches in All instances",
+                "Description": "Scan for Patches in ScanPatchInfoNoRebootSystems",
                 "WindowId": {
                     "Ref": "ScanMaintenanceWindow"
                 },
@@ -111,14 +105,14 @@
                     {
                         "Key": "tag:Patch Group",
                         "Values": [
-                            "LNX_SRV_SATURDAY_3AM-5AM",
-                            "SRV_SATURDAY_4AM-6AM",
-                            "AMZN_LNX_SRV_SATURDAY_3AM-5AM"
+                            "AMZ_NO_REBOOT",
+                            "LNX_NO_REBOOT",
+                            "SRV_NO_REBOOT"
 
                         ]
                     }
                 ],
-                "Name": "ScanPatchesAllTargets"
+                "Name": "ScanPatchesNoRebootSystems"
             }
         },
         "ScanTask": {
@@ -152,7 +146,7 @@
                             "Operation": [
                                 "Scan"
                             ]
-                        },
+                        }
                     }
                 },
                 "WindowId": {
@@ -177,7 +171,7 @@
                 "Duration": {
                     "Ref": "Duration"
                 },
-                "Name": "SRV_SATURDAY_4AM-6AM_Maintenance_Window_Windows"
+                "Name": "SRV_NO_REBOOT_Maintenance_Window_Windows"
             }
         },
         "CreateTaskTargetsWin": {
@@ -192,11 +186,11 @@
                     {
                         "Key": "tag:Patch Group",
                         "Values": [
-                            "SRV_SATURDAY_4AM-6AM"
+                            "SRV_NO_REBOOT"
                         ]
                     }
                 ],
-                "Name": "TaskTarget-Win"
+                "Name": "TaskTarget-NoRebootWin"
             }
         },
         "CreatePatchBaselineWin": {
@@ -206,7 +200,6 @@
                 "Description": "Baseline containing all updates approved for Windows instances",
                 "OperatingSystem": "WINDOWS",
                 "PatchGroups": [
-                    "SRV_SATURDAY_4AM-6AM",
                     "SRV_NO_REBOOT"
                 ],
                 "ApprovalRules": {
@@ -308,8 +301,9 @@
                             "Operation": [
                                 "Scan",
                                 "Install"
-                            ]
-                        },
+                            ],
+                            "RebootOption": ["NoReboot"]
+                        }
                     }
                 },
                 "WindowId": {
@@ -334,7 +328,7 @@
                 "Duration": {
                     "Ref": "Duration"
                 },
-                "Name": "LNX_SRV_SATURDAY_3AM-5AM_Maintenance_Window_Linux"
+                "Name": "LNX_NO_REBOOT_Maintenance_Window_Linux"
             }
         },
         "CreateTaskTargetsLinux": {
@@ -349,7 +343,7 @@
                     {
                         "Key": "tag:Patch Group",
                         "Values": [
-                            "LNX_SRV_SATURDAY_3AM-5AM"
+                            "LNX_NO_REBOOT"
                         ]
                     }
                 ],
@@ -363,7 +357,6 @@
                 "Description": "Baseline containing all updates approved for Red Hat instances",
                 "OperatingSystem": "REDHAT_ENTERPRISE_LINUX",
                 "PatchGroups": [
-                    "LNX_SRV_SATURDAY_3AM-5AM",
                     "LNX_NO_REBOOT"
                 ],
                 "ApprovalRules": {
@@ -454,7 +447,7 @@
                 "Duration": {
                     "Ref": "Duration"
                 },
-                "Name": "AMZN_LNX_SRV_SATURDAY_3AM-5AM_Maintenance_Window"
+                "Name": "AMZ_NO_REBOOT_Maintenance_Window"
             }
         },
         "CreateTaskTargetsAMZNLNX": {
@@ -469,7 +462,7 @@
                     {
                         "Key": "tag:Patch Group",
                         "Values": [
-                            "AMZN_LNX_SRV_SATURDAY_3AM-5AM"
+                            "AMZ_NO_REBOOT"
                         ]
                     }
                 ],
@@ -483,7 +476,6 @@
                 "Description": "Baseline containing all updates approved for Amazon Linux instances",
                 "OperatingSystem": "AMAZON_LINUX",
                 "PatchGroups": [
-                    "AMZN_LNX_SRV_SATURDAY_3AM-5AM",
                     "AMZ_NO_REBOOT"
                 ],
                 "ApprovalRules": {
@@ -556,44 +548,6 @@
                     "Ref": "CreateMaintenanceWindowAMZNLNX"
                 },
                 "TaskType": "RUN_COMMAND"
-            }
-        },
-        "GatherInventory": {
-            "Type": "AWS::SSM::Association",
-            "Properties": {
-                "AssociationName": "GatherInventory",
-                "Name": "AWS-GatherSoftwareInventory",
-                "ScheduleExpression": {
-                    "Ref": "GatherInventorySchedule"
-                },
-                "Targets": [
-                    {
-                        "Key": "InstanceIds",
-                        "Values": [
-                            "*"
-                        ]
-                    }
-                ]
-            }
-        },
-        "SSMResourceDataSync": {
-          "Type": "AWS::SSM::ResourceDataSync",
-          "Properties": {
-            "SyncName": "SSM-ResourceDataSync",
-            "BucketName": {
-                "Ref": "LogsBucket"
-            },
-            "BucketRegion": "us-east-1",
-            "SyncFormat": "JsonSerDe",
-            "BucketPrefix": "InventoryLogs"
-          }
-        }
-    },
-    "Outputs": {
-        "InventoryAssociationID": {
-            "Description": "AssociationName",
-            "Value": {
-                "Ref": "GatherInventory"
             }
         }
     }

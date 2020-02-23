@@ -488,7 +488,7 @@ def lambda_handler(event, context):
 
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
-    s3_folder = current_date.strftime("%Y/%m/%d/")
+    s3_folder = "SSM/"+current_date.strftime("%Y/%m/%d/")
     consolidated_report_name = account_name + "_SSM_Report_" + dt_string + ".xlsx"
     xls_file = convert_csv_to_excel(consolidated_report_name, csvs_list)
     logger.debug(xls_file)
