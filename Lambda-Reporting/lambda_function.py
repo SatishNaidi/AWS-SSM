@@ -338,15 +338,28 @@ def get_effective_patches(client, patch_base_lines):
     return list_of_patches
 
 
-def upload_file_s3(client, bucket_name, s3_folder, to_be_upload_filename):
-    logger.debug(f"Bucket Name:{bucket_name}, LocalFile : {to_be_upload_filename}")
+def cross_account_upload_to_s3(bucketname, s3folder, to_be_upload_filename):
+    """
+    :param bucketname:
+    :param s3folder:
+    :param to_be_upload_filename:
+    :return:
+    """
+    s3_resource = boto3.resource('s3')
+    s3_client = boto3.client("s3", region_name="us-east-1")
+    logger.debug("{}: S3 Client Connection Object Created".format(s3_client))
+
     only_filename = os.path.basename(to_be_upload_filename)
     try:
-        res = client.upload_file(to_be_upload_filename, bucket_name, s3_folder+only_filename)
-        logger.debug(res)
-        return "File: " + only_filename + " Uploaded to bucket : " + bucket_name
+        s3_acl_response = s3_client.get_bucket_acl(Bucket=bucketname)
+        owner = 'id' + '=' + s3_acl_response['Owner']['ID']
+        response = s3_resource.Object(bucketname,s3folder+only_filename).put(
+            Body=open(to_be_upload_filename, 'rb'),
+            ServerSideEncryption='AES256', GrantFullControl=owner)
+        print(response)
+        return f"Uploaded to {bucketname}:{s3folder}{only_filename}"
     except Exception as err:
-        logger.error(err)
+        print(err)
         return err
 
 
@@ -436,9 +449,6 @@ def lambda_handler(event, context):
     instance_patch_info = gather_instance_patch_info(ssm_client)
     instance_patch_info = {each_item["InstanceId"]: each_item for each_item in instance_patch_info}
 
-    # Detailed Instance Patch Report
-    # instance_patch_report = detailed_instance_patch_report(ssm_client, required_info_instance_ids)
-
     all_instance_patch_report = []
     try:
         for each_instance in required_info_instance_ids.keys():
@@ -483,9 +493,6 @@ def lambda_handler(event, context):
             each_ec2["ComplianceState"] = "Non Compliant"
 
     csvs_list.append(write_to_csv("EC2Report.csv", required_info))
-    s3_client = boto3.client("s3", region_name="us-east-1")
-    logger.debug("{}: S3 Client Connection Object Created".format(s3_client))
-
     current_date = datetime.now()
     dt_string = current_date.strftime("%d_%b_%Y_%H_%M")
     s3_folder = "SSM/"+current_date.strftime("%Y/%m/%d/")
@@ -494,7 +501,7 @@ def lambda_handler(event, context):
     logger.debug(xls_file)
     final_response = {}
     try:
-        result = upload_file_s3(s3_client, bucket_name, s3_folder, xls_file)
+        result = cross_account_upload_to_s3(bucket_name, s3_folder, xls_file)
         logger.info(result)
         final_response[os.path.basename(xls_file)] = result
     except Exception as err:
