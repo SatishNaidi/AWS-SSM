@@ -1,0 +1,780 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Creates SSM Stack with all services in Place",
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "SSM Configurations"
+                    },
+                    "Parameters": [
+                        "SchedExpWin",
+                        "SchedExpLinux",
+                        "SchedExpAMZLinux",
+                        "ScanPatchSchedule",
+                        "Duration",
+                        "Cutoff",
+                        "AllowUnregisteredTargets",
+                        "GatherInventorySchedule",
+                        "LogsBucket"
+                    ]
+                }
+            ]
+        }
+    },
+    "Parameters": {
+        "SchedExpWin": {
+            "Description": "schedule to run the maintenance window",
+            "Default": "cron(0 0 4 ? * SAT *)",
+            "Type": "String",
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+        },
+        "SchedExpLinux": {
+            "Description": "schedule to run the maintenance window",
+            "Default": "cron(0 0 3 ? * SAT *)",
+            "Type": "String",
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+        },
+        "SchedExpAMZLinux": {
+            "Description": "schedule to run the maintenance window",
+            "Default": "cron(0 0 3 ? * SAT *)",
+            "Type": "String",
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+        },
+        "ScanPatchSchedule": {
+            "Description": "schedule to run the maintenance window",
+            "Default": "rate(1 day)",
+            "Type": "String",
+            "ConstraintDescription": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+        },
+        "Duration": {
+            "Description": "max duration of the maintenance window in hours",
+            "Default": 2,
+            "Type": "Number"
+        },
+        "Cutoff": {
+            "Description": "hours before window closure to cut off new activity",
+            "Default": 0,
+            "Type": "Number",
+            "ConstraintDescription": "must be < (Duration - 1)"
+        },
+        "AllowUnregisteredTargets": {
+            "Description": "allow or disallow any individual managed instance",
+            "Default": false,
+            "Type": "String",
+            "AllowedValues": [
+                true,
+                false
+            ]
+        },
+        "GatherInventorySchedule": {
+            "Description": "How frequently you want to execute the lambda function, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
+            "Default": "rate(12 hours)",
+            "Type": "String"
+        },
+        "LogsBucket": {
+            "Description": "Provide the bucket name to store the logs",
+            "Default": "resource-data-ssm",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "ScanMaintenanceWindow": {
+            "Type": "AWS::SSM::MaintenanceWindow",
+            "Properties": {
+                "Description": "Maintenance window for Windows Servers",
+                "AllowUnassociatedTargets": {
+                    "Ref": "AllowUnregisteredTargets"
+                },
+                "Cutoff": {
+                    "Ref": "Cutoff"
+                },
+                "Schedule": {
+                    "Ref": "ScanPatchSchedule"
+                },
+                "Duration": {
+                    "Ref": "Duration"
+                },
+                "Name": "ScanPatchInfoAllSystems"
+            }
+        },
+        "ScanTargets": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Scan for Patches in All instances",
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "LNX_SRV_SATURDAY_3AM-5AM",
+                            "SRV_SATURDAY_4AM-6AM",
+                            "AMZN_LNX_SRV_SATURDAY_3AM-5AM"
+
+                        ]
+                    }
+                ],
+                "Name": "ScanPatchesAllTargets"
+            }
+        },
+        "ScanTask": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Scans for patches in all instances",
+                "Priority": 1,
+                "MaxConcurrency": 100,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "ScanTargets"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunOnlyScan",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Scan"
+                            ]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "CreateMaintenanceWindowWIN": {
+            "Type": "AWS::SSM::MaintenanceWindow",
+            "Properties": {
+                "Description": "Maintenance window for Windows Servers",
+                "AllowUnassociatedTargets": {
+                    "Ref": "AllowUnregisteredTargets"
+                },
+                "Cutoff": {
+                    "Ref": "Cutoff"
+                },
+                "Schedule": {
+                    "Ref": "SchedExpWin"
+                },
+                "Duration": {
+                    "Ref": "Duration"
+                },
+                "Name": "SRV_SATURDAY_4AM-6AM_Maintenance_Window_Windows"
+            }
+        },
+        "CreateTaskTargetsWin": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Task Target for Windows",
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowWIN"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "SRV_SATURDAY_4AM-6AM"
+                        ]
+                    }
+                ],
+                "Name": "TaskTarget-Win"
+            }
+        },
+        "CreatePatchBaselineWin": {
+            "Type": "AWS::SSM::PatchBaseline",
+            "Properties": {
+                "Name": "WindowsApprovedPatches",
+                "Description": "Baseline containing all updates approved for Windows instances",
+                "OperatingSystem": "WINDOWS",
+                "PatchGroups": [
+                    "SRV_SATURDAY_4AM-6AM",
+                    "SRV_NO_REBOOT"
+                ],
+                "ApprovalRules": {
+                    "PatchRules": [
+                        {
+                            "PatchFilterGroup": {
+                                "PatchFilters": [
+                                    {
+                                        "Values": [
+                                            "SecurityUpdates"
+                                        ],
+                                        "Key": "CLASSIFICATION"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "MSRC_SEVERITY"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "PRODUCT"
+                                    }
+                                ]
+                            },
+                            "ApproveAfterDays": 7
+                        },
+                        {
+                            "PatchFilterGroup": {
+                                "PatchFilters": [
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "MSRC_SEVERITY"
+                                    },
+                                    {
+                                        "Values": [
+                                            "SecurityUpdates"
+                                        ],
+                                        "Key": "CLASSIFICATION"
+                                    },
+                                    {
+                                        "Values": [
+                                            "APPLICATION"
+                                        ],
+                                        "Key": "PATCH_SET"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "PRODUCT"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "PRODUCT_FAMILY"
+                                    }
+                                ]
+                            },
+                            "ApproveAfterDays": 7
+                        }
+                    ]
+                }
+            }
+        },
+        "CreateTaskWin": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
+                "Priority": 1,
+                "MaxConcurrency": 50,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "CreateTaskTargetsWin"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunWindowsPatchBaseLine",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task registered to RunWindowsPatchBaseLine",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Install"
+                            ]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowWIN"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "CreateMaintenanceWindowLinux": {
+            "Type": "AWS::SSM::MaintenanceWindow",
+            "Properties": {
+                "Description": "Maintenance window for Linux Servers",
+                "AllowUnassociatedTargets": {
+                    "Ref": "AllowUnregisteredTargets"
+                },
+                "Cutoff": {
+                    "Ref": "Cutoff"
+                },
+                "Schedule": {
+                    "Ref": "SchedExpLinux"
+                },
+                "Duration": {
+                    "Ref": "Duration"
+                },
+                "Name": "LNX_SRV_SATURDAY_3AM-5AM_Maintenance_Window_Linux"
+            }
+        },
+        "CreateTaskTargetsLinux": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Task Target for Linux",
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowLinux"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "LNX_SRV_SATURDAY_3AM-5AM"
+                        ]
+                    }
+                ],
+                "Name": "TaskTarget-Linux"
+            }
+        },
+        "CreatePatchBaselineLinux": {
+            "Type": "AWS::SSM::PatchBaseline",
+            "Properties": {
+                "Name": "LinuxApprovedPatches",
+                "Description": "Baseline containing all updates approved for Red Hat instances",
+                "OperatingSystem": "REDHAT_ENTERPRISE_LINUX",
+                "PatchGroups": [
+                    "LNX_SRV_SATURDAY_3AM-5AM",
+                    "LNX_NO_REBOOT"
+                ],
+                "ApprovalRules": {
+                    "PatchRules": [
+                        {
+                            "PatchFilterGroup": {
+                                "PatchFilters": [
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "CLASSIFICATION"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "SEVERITY"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "PRODUCT"
+                                    }
+                                ]
+                            },
+                            "ApproveAfterDays": 7
+                        }
+                    ]
+                }
+            }
+        },
+        "CreateTaskLinux": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
+                "Priority": 1,
+                "MaxConcurrency": 50,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "CreateTaskTargetsLinux"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunLinuxPatchBaseLine",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task registered to RunLinuxPatchBaseLine",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Install"
+                            ]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowLinux"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "CreateMaintenanceWindowAMZNLNX": {
+            "Type": "AWS::SSM::MaintenanceWindow",
+            "Properties": {
+                "Description": "Maintenance window for AMZNLNX Servers",
+                "AllowUnassociatedTargets": {
+                    "Ref": "AllowUnregisteredTargets"
+                },
+                "Cutoff": {
+                    "Ref": "Cutoff"
+                },
+                "Schedule": {
+                    "Ref": "SchedExpAMZLinux"
+                },
+                "Duration": {
+                    "Ref": "Duration"
+                },
+                "Name": "AMZN_LNX_SRV_SATURDAY_3AM-5AM_Maintenance_Window"
+            }
+        },
+        "CreateTaskTargetsAMZNLNX": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Task Target for AMZNLNX",
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowAMZNLNX"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "AMZN_LNX_SRV_SATURDAY_3AM-5AM"
+                        ]
+                    }
+                ],
+                "Name": "TaskTarget-AMZNLNX"
+            }
+        },
+        "CreatePatchBaselineAMZNLNX": {
+            "Type": "AWS::SSM::PatchBaseline",
+            "Properties": {
+                "Name": "AmazonLinuxApprovedPatches",
+                "Description": "Baseline containing all updates approved for Amazon Linux instances",
+                "OperatingSystem": "AMAZON_LINUX",
+                "PatchGroups": [
+                    "AMZN_LNX_SRV_SATURDAY_3AM-5AM",
+                    "AMZ_NO_REBOOT"
+                ],
+                "ApprovalRules": {
+                    "PatchRules": [
+                        {
+                            "PatchFilterGroup": {
+                                "PatchFilters": [
+                                    {
+                                        "Values": [
+                                            "Security"
+                                        ],
+                                        "Key": "CLASSIFICATION"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "SEVERITY"
+                                    },
+                                    {
+                                        "Values": [
+                                            "*"
+                                        ],
+                                        "Key": "PRODUCT"
+                                    }
+                                ]
+                            },
+                            "ApproveAfterDays": 7
+                        }
+                    ]
+                }
+            }
+        },
+        "CreateTaskAmazonLinux": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
+                "Priority": 1,
+                "MaxConcurrency": 50,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "CreateTaskTargetsAMZNLNX"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunAMZLinuxPatchBaseLine",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task registered to RunAMZLinuxPatchBaseLine",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Install"
+                            ]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowAMZNLNX"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "ScanTargetsNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Scan for Patches in ScanPatchInfoNoRebootSystems",
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "AMZ_NO_REBOOT",
+                            "LNX_NO_REBOOT",
+                            "SRV_NO_REBOOT"
+
+                        ]
+                    }
+                ],
+                "Name": "ScanPatchesNoRebootSystems"
+            }
+        },
+        "ScanTaskNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Scans for patches in all instances",
+                "Priority": 1,
+                "MaxConcurrency": 100,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "ScanTargets"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunOnlyScanNoReboot",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Scan"
+                            ]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "ScanMaintenanceWindow"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "CreateTaskTargetsWinNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Task Target for Windows",
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowWIN"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "SRV_NO_REBOOT"
+                        ]
+                    }
+                ],
+                "Name": "TaskTarget-NoRebootWin"
+            }
+        },
+        "CreateTaskWinNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
+                "Priority": 1,
+                "MaxConcurrency": 50,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "CreateTaskTargetsWinNoReboot"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunWindowsPatchBaseLineNoReboot",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task registered to RunWindowsPatchBaseLineNoReboot",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Install"
+                            ],
+                            "RebootOption": ["NoReboot"]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowWIN"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "CreateTaskTargetsLinuxNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTarget",
+            "Properties": {
+                "Description": "Task Target for Linux",
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowLinux"
+                },
+                "ResourceType": "INSTANCE",
+                "Targets": [
+                    {
+                        "Key": "tag:Patch Group",
+                        "Values": [
+                            "LNX_NO_REBOOT",
+                            "AMZ_NO_REBOOT"
+                        ]
+                    }
+                ],
+                "Name": "TaskTarget-LinuxNoReboot"
+            }
+        },
+        "CreateTaskLinuxNoReboot": {
+            "Type": "AWS::SSM::MaintenanceWindowTask",
+            "Properties": {
+                "MaxErrors": 50,
+                "Description": "Run AWS-RunPatchBaseline command for all Patch Group values",
+                "Priority": 1,
+                "MaxConcurrency": 50,
+                "Targets": [
+                    {
+                        "Key": "WindowTargetIds",
+                        "Values": [
+                            {
+                                "Ref": "CreateTaskTargetsLinuxNoReboot"
+                            }
+                        ]
+                    }
+                ],
+                "Name": "RunLinuxPatchBaseLineNoReboot",
+                "TaskArn": "AWS-RunPatchBaseline",
+                "TaskInvocationParameters": {
+                    "MaintenanceWindowRunCommandParameters": {
+                        "TimeoutSeconds": 600,
+                        "Comment": "RunCommand task registered to RunLinuxPatchBaseLineNoReboot",
+                        "OutputS3BucketName": {
+                            "Ref": "LogsBucket"
+                        },
+                        "OutputS3KeyPrefix": "PatchLogs",
+                        "Parameters": {
+                            "Operation": [
+                                "Install"
+                            ],
+                            "RebootOption": ["NoReboot"]
+                        }
+                    }
+                },
+                "WindowId": {
+                    "Ref": "CreateMaintenanceWindowLinux"
+                },
+                "TaskType": "RUN_COMMAND"
+            }
+        },
+        "GatherInventory": {
+            "Type": "AWS::SSM::Association",
+            "Properties": {
+                "AssociationName": "GatherInventory",
+                "Name": "AWS-GatherSoftwareInventory",
+                "ScheduleExpression": {
+                    "Ref": "GatherInventorySchedule"
+                },
+                "Targets": [
+                    {
+                        "Key": "InstanceIds",
+                        "Values": [
+                            "*"
+                        ]
+                    }
+                ]
+            }
+        },
+        "SSMResourceDataSync": {
+          "Type": "AWS::SSM::ResourceDataSync",
+          "Properties": {
+            "SyncName": "SSM-ResourceDataSync",
+            "BucketName": {
+                "Ref": "LogsBucket"
+            },
+            "BucketRegion": "us-east-1",
+            "SyncFormat": "JsonSerDe",
+            "BucketPrefix": "InventoryLogs"
+          }
+        }
+    },
+    "Outputs": {
+        "InventoryAssociationID": {
+            "Description": "AssociationName",
+            "Value": {
+                "Ref": "GatherInventory"
+            }
+        }
+    }
+}

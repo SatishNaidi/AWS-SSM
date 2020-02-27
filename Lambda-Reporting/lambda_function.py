@@ -7,6 +7,7 @@ from datetime import datetime, date
 import json
 import sys
 from time import sleep
+import time
 from botocore.exceptions import ClientError
 from xlsxwriter.workbook import Workbook
 
@@ -29,6 +30,11 @@ except KeyError:
 logger.debug('Log Level Set to : DEBUG')
 logger.setLevel(level_obj)
 
+
+os.environ['TZ'] = 'US/Eastern'
+time.tzset()
+print(f"Current time zone: {time.tzname}")
+print(datetime.now())
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
