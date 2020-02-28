@@ -36,6 +36,7 @@ time.tzset()
 print(f"Current time zone: {time.tzname}")
 print(datetime.now())
 
+
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
 
@@ -490,13 +491,15 @@ def lambda_handler(event, context):
 
         if each_ec2.get("AgentVersion"):
             each_ec2["SSMManaged"] = "Yes"
-            if each_ec2.get("MissingCount", 0) != 0 or each_ec2.get("FailedCount", 0) != 0:
+            if (each_ec2.get("MissingCount", 0) != 0) or (each_ec2.get("FailedCount", 0) != 0) or (each_ec2.get("InstalledPendingRebootCount", 0) != 0):
                 each_ec2["ComplianceState"] = "Non Compliant"
+                each_ec2["NonCompliantReason"] = "Either of MissingCount,FailedCount,InstalledPendingRebootCount is not 0"
             else:
                 each_ec2["ComplianceState"] = "Compliant"
         else:
             each_ec2["SSMManaged"] = "No"
             each_ec2["ComplianceState"] = "Non Compliant"
+            each_ec2["NonCompliantReason"] = "NoSSMAgent"
 
     csvs_list.append(write_to_csv("EC2Report.csv", required_info))
     current_date = datetime.now()
