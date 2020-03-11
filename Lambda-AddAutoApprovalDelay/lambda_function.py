@@ -76,8 +76,9 @@ def calculate_days_from_patchday(env):
             patch_date = find_second_tuesday_of_month(month - 1)
             today = date.today()
             diff = today - patch_date
-            return int(diff.days)
-        return int(diff.days)
+            # return int(diff.days)
+            return patch_date.strftime("%Y-%m-%d")
+        return patch_date.strftime("%Y-%m-%d")
 
     except Exception as err:
         print(err)
@@ -116,11 +117,15 @@ def collect_all_patchbaselines(client, patch_baselines):
         return False
 
 
-def update_delay_for_patch_baseline(client, to_be_modified_baselines, delay_days):
+def update_delay_for_patch_baseline(client, to_be_modified_baselines, approve_until_date):
     response_list = []
     for each_base_line in to_be_modified_baselines:
         for d in to_be_modified_baselines[each_base_line]:
-            d.update((k, delay_days) for k, v in d.items() if k == "ApproveAfterDays")
+            if "ApproveAfterDays" in d.keys():
+                del d["ApproveAfterDays"]
+            d["ApproveUntilDate"] = approve_until_date
+
+            # d.update((k, delay_days) for k, v in d.items() if k == "ApproveAfterDays")
         response = client.update_patch_baseline(
             BaselineId=each_base_line,
             ApprovalRules={
@@ -141,7 +146,6 @@ def lambda_handler(event, context):
         print("Env Variable 'patch_baselines' doesn't exits")
         # return "Specified Env Variable doesn't exits")
         patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
-        # patch_date = "Oct-08-2019"
 
     try:
         account_environment = os.environ['account_environment']
@@ -151,14 +155,14 @@ def lambda_handler(event, context):
         # return "Specified Env Variable doesn't exits")
         account_environment = "NONPROD"
 
-    delay_days = calculate_days_from_patchday(account_environment)
-    print("Days from Patch Tuesday: ", delay_days)
+    approve_until_date = calculate_days_from_patchday(account_environment)
+    print("Days from Patch Tuesday: ", approve_until_date)
 
     for each_region in regions:
         client = boto3.client('ssm', region_name=each_region)
         print("Connected to region: " + each_region)
         patches_to_be_edited = collect_all_patchbaselines(client, patch_baselines)
-        response = update_delay_for_patch_baseline(client, patches_to_be_edited, delay_days)
+        response = update_delay_for_patch_baseline(client, patches_to_be_edited, approve_until_date)
         all_regions_response[each_region] = response
         print("Finished processing in region: " + each_region)
     return {
