@@ -16,6 +16,21 @@ print(f"Current time zone: {time.tzname}")
 print(datetime.now())
 
 
+def get_parameter_from_store(parameter_name):
+    """
+    :param parameter_name:
+    :return:
+    """
+    try:
+        ssm_client = boto3.client('ssm')
+        response = ssm_client.get_parameter(
+            Name=parameter_name
+        )
+        value = response['Parameter']['Value']
+    except Exception as err:
+        value = "NoValueFound"
+    return value
+
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
 
@@ -148,10 +163,14 @@ def lambda_handler(event, context):
         # patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
 
     try:
-        account_environment = os.environ['account_environment']
+        account_environment = get_parameter_from_store("/account/Environment").upper()
+        if account_environment != "PROD":
+            account_environment = "NONPROD"
+
+        # account_environment = os.environ['account_environment']
 
     except Exception as err:
-        print("Environment Variable 'account_environment' doesn't exits")
+        # print("Environment Variable 'account_environment' doesn't exits")
         # return "Specified Env Variable doesn't exits")
         account_environment = "NONPROD"
 
