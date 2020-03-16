@@ -417,12 +417,12 @@ def lambda_handler(event, context):
     # account_name = get_account_alias()
     account_name = get_parameter_from_store("/account/AccountPrefix")
 
-    try:
-        patch_baselines = os.environ['patch_baselines'].split(",")
-    except KeyError:
-        logger.warning("patch_baselines Environment Variable Doesn't exist")
-        patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
-    logger.info("patch_baselines = {}".format(patch_baselines))
+    # try:
+    #     patch_baselines = os.environ['patch_baselines'].split(",")
+    # except KeyError:
+    #     logger.warning("patch_baselines Environment Variable Doesn't exist")
+    #     patch_baselines = ["WindowsApprovedPatches", "AmazonLinuxApprovedPatches", "LinuxApprovedPatches"]
+    # logger.info("patch_baselines = {}".format(patch_baselines))
 
     try:
         bucket_name = os.environ['bucket_name']
@@ -432,7 +432,8 @@ def lambda_handler(event, context):
     logger.info("Bucket for writing logs bucket_name = {}".format(bucket_name))
 
     # PatchBaselines Report
-    response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines)
+    patch_baselines_prefix = ["BL-"]
+    response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines_prefix)
     list_of_patches = get_effective_patches(ssm_client, response_patch_base_lines)
     csvs_list.append(write_to_csv("PatchBaseLineReport.csv", list_of_patches))
     # EC2Report
