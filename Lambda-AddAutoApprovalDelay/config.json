@@ -9,9 +9,7 @@
   "MemorySize" : 1024,
   "Environment" : {
       "Variables": {
-          "log_level": "WARNING",
-          "patch_baselines": "WindowsApprovedPatches,AmazonLinuxApprovedPatches,LinuxApprovedPatches",
-          "account_environment": "NONPROD"
+          "log_level": "WARNING"
       }
   },
   "Tags" : {
