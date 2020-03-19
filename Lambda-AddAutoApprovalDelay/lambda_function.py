@@ -109,7 +109,7 @@ def collect_all_patchbaselines(client, patch_baselines):
             Filters=[
                 {
                     'Key': 'NAME_PREFIX',
-                    'Values': ["BL-"]
+                    'Values': patch_baselines
                 }
             ],
             PaginationConfig={
@@ -180,7 +180,7 @@ def lambda_handler(event, context):
     for each_region in regions:
         client = boto3.client('ssm', region_name=each_region)
         print("Connected to region: " + each_region)
-        base_line_prefix = "BL-"
+        base_line_prefix = ["BL_"]
         patches_to_be_edited = collect_all_patchbaselines(client, base_line_prefix)
         response = update_delay_for_patch_baseline(client, patches_to_be_edited, approve_until_date)
         all_regions_response[each_region] = response
@@ -193,6 +193,5 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     import pdb
-
     pdb.set_trace()
     pprint.pprint(lambda_handler({}, {}))
