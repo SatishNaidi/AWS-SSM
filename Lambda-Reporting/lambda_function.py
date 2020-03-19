@@ -432,7 +432,7 @@ def lambda_handler(event, context):
     logger.info("Bucket for writing logs bucket_name = {}".format(bucket_name))
 
     # PatchBaselines Report
-    patch_baselines_prefix = ["BL-"]
+    patch_baselines_prefix = ["BL_"]
     response_patch_base_lines = patch_base_line_names_to_ids(ssm_client, patch_baselines_prefix)
     list_of_patches = get_effective_patches(ssm_client, response_patch_base_lines)
     csvs_list.append(write_to_csv("PatchBaseLineReport.csv", list_of_patches))
