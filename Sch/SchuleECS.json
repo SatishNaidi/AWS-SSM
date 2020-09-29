@@ -1,0 +1,281 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "An example CloudFormation template for Fargate",
+	"Metadata": {
+		"AWS::CloudFormation::Interface": {
+			"ParameterGroups": [
+				{
+					"Label": {
+						"default": "Task Defs Network Configuration"
+					},
+					"Parameters": [
+						"VPC",
+						"Subnets",
+						"TaskDefSecurityGroup"
+					]
+				},
+				{
+					"Label": {
+						"default": "ECS Configuration"
+					},
+					"Parameters": [
+						"Image"
+					]
+				}
+			]
+		}
+	},
+	"Parameters": {
+		"VPC": {
+			"Type": "AWS::EC2::VPC::Id",
+			"Default": "vpc-09716e17eb6129849"
+		},
+		"Subnets": {
+			"Type": "List<AWS::EC2::Subnet::Id>",
+			"Default": "subnet-023efb1e07ac288f0,subnet-04c94da52c0808584,subnet-0c04008c1cc5939e1"
+		},
+		"Image": {
+			"Type": "String",
+			"Default": "495830459543.dkr.ecr.us-east-1.amazonaws.com/ecs-testing:latest"
+		},
+		"TaskDefSecurityGroup": {
+			"Type": "List<AWS::EC2::SecurityGroup::Id>",
+			"Description": "Make sure to select a SG from above selected VPC",
+			"Default": "sg-0894402973926b0df"
+		},
+		"RunTaskSchedule": {
+			"Description": "How frequently you want to run the task, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html",
+			"Default": "rate(1 day)",
+			"Type": "String",
+			"ConstraintDescription": "How frequently you want to run the task, Refer here for help https://docs.aws.amazon.com/eventbridge/latest/userguide/scheduled-events.html"
+		}
+	},
+	"Resources": {
+		"Cluster": {
+			"Type": "AWS::ECS::Cluster",
+			"Properties": {
+				"ClusterName": {
+					"Fn::Join": [
+						"-",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"Cluster"
+						]
+					]
+				}
+			}
+		},
+		"ExecutionRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": {
+					"Fn::Join": [
+						"-",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"ECS-ExecutionRole"
+						]
+					]
+				},
+				"AssumeRolePolicyDocument": {
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": "ecs-tasks.amazonaws.com"
+							},
+							"Action": "sts:AssumeRole"
+						}
+					]
+				},
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+				]
+			}
+		},
+		"TaskRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": {
+					"Fn::Join": [
+						"-",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"ECS-TaskRole"
+						]
+					]
+				},
+				"AssumeRolePolicyDocument": {
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": "ecs-tasks.amazonaws.com"
+							},
+							"Action": "sts:AssumeRole"
+						}
+					]
+				}
+			}
+		},
+		"LogGroup": {
+			"Type": "AWS::Logs::LogGroup",
+			"Properties": {
+				"LogGroupName": {
+					"Fn::Join": [
+						"",
+						[
+							"/ecs/",
+							{
+								"Ref": "AWS::StackName"
+							},
+							"-TaskDefinition"
+						]
+					]
+				}
+			}
+		},
+		"TaskDefinition": {
+			"Type": "AWS::ECS::TaskDefinition",
+			"DependsOn": "LogGroup",
+			"Properties": {
+				"Family": {
+					"Fn::Join": [
+						"",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"TaskDefinition"
+						]
+					]
+				},
+				"NetworkMode": "awsvpc",
+				"RequiresCompatibilities": [
+					"FARGATE"
+				],
+				"Cpu": 256,
+				"Memory": "0.5GB",
+				"ExecutionRoleArn": {
+					"Ref": "ExecutionRole"
+				},
+				"TaskRoleArn": {
+					"Ref": "TaskRole"
+				},
+				"ContainerDefinitions": [
+					{
+						"Name": "MyApp",
+						"Image": {
+							"Ref": "Image"
+						},
+						"LogConfiguration": {
+							"LogDriver": "awslogs",
+							"Options": {
+								"awslogs-region": {
+									"Ref": "AWS::Region"
+								},
+								"awslogs-group": {
+									"Ref": "LogGroup"
+								},
+								"awslogs-stream-prefix": "ecs"
+							}
+						}
+					}
+				]
+			}
+		},
+		"ECSEventsRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": {
+					"Fn::Join": [
+						"-",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"ECSRole"
+						]
+					]
+				},
+				"AssumeRolePolicyDocument": {
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": "events.amazonaws.com"
+							},
+							"Action": "sts:AssumeRole"
+						}
+					]
+				},
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole"
+				]
+			}
+		},
+		"TaskSchedule": {
+			"Type": "AWS::Events::Rule",
+			"Properties": {
+				"Description": "Runs the ECS Fargate task at specified intervals",
+				"Name": {
+					"Fn::Join": [
+						"-",
+						[
+							{
+								"Ref": "AWS::StackName"
+							},
+							"SchTask"
+						]
+					]
+				},
+				"ScheduleExpression": {
+					"Ref": "RunTaskSchedule"
+				},
+				"State": "ENABLED",
+				"Targets": [
+					{
+						"Id": "sch-run-task",
+						"RoleArn": {
+							"Fn::GetAtt": [
+								"ECSEventsRole",
+								"Arn"
+							]
+						},
+						"EcsParameters": {
+							"TaskDefinitionArn": {
+								"Ref": "TaskDefinition"
+							},
+							"TaskCount": 1,
+							"LaunchType": "FARGATE",
+							"PlatformVersion": "LATEST",
+							"NetworkConfiguration": {
+								"AwsVpcConfiguration": {
+									"AssignPublicIp": "ENABLED",
+									"SecurityGroups": {
+										"Ref": "TaskDefSecurityGroup"
+									},
+									"Subnets": {
+										"Ref": "Subnets"
+									}
+								}
+							}
+						},
+						"Arn": {
+							"Fn::GetAtt": [
+								"Cluster",
+								"Arn"
+							]
+						}
+					}
+				]
+			}
+		}
+	}
+}
